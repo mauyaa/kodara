@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 
 /// Single source of truth for Kodara's design tokens, translated 1:1 from
@@ -114,8 +115,10 @@ class KodaraMotion {
   const KodaraMotion._();
 
   // 6. Motion
-  static const Duration fast = Duration(milliseconds: 120); // button press, toggle
-  static const Duration base = Duration(milliseconds: 180); // hover, focus, tab switch
+  static const Duration fast =
+      Duration(milliseconds: 120); // button press, toggle
+  static const Duration base =
+      Duration(milliseconds: 180); // hover, focus, tab switch
   static const Duration slow = Duration(milliseconds: 260); // modal/sheet enter
 
   /// cubic-bezier(.4,0,.2,1) — default for everything.
@@ -147,21 +150,81 @@ class KodaraTypography {
       // Hero is intentionally NOT part of the standard TextTheme slots so it
       // can't be reached for accidentally — use KodaraTypography.heroStyle
       // explicitly at the one call site per screen instead.
-      displayLarge: TextStyle(fontSize: display, fontWeight: FontWeight.w600, color: primary, height: 1.15),
-      displayMedium: TextStyle(fontSize: xxl, fontWeight: FontWeight.w600, color: primary, height: 1.2),
-      displaySmall: TextStyle(fontSize: xl, fontWeight: FontWeight.w600, color: primary, height: 1.25),
-      headlineLarge: TextStyle(fontSize: xxl, fontWeight: FontWeight.w600, color: primary, height: 1.2),
-      headlineMedium: TextStyle(fontSize: xl, fontWeight: FontWeight.w600, color: primary, height: 1.25),
-      headlineSmall: TextStyle(fontSize: lg, fontWeight: FontWeight.w600, color: primary, height: 1.3),
-      titleLarge: TextStyle(fontSize: lg, fontWeight: FontWeight.w600, color: primary, height: 1.3),
-      titleMedium: TextStyle(fontSize: md, fontWeight: FontWeight.w600, color: primary, height: 1.3),
-      titleSmall: TextStyle(fontSize: base, fontWeight: FontWeight.w600, color: primary, height: 1.35),
-      bodyLarge: TextStyle(fontSize: md, fontWeight: FontWeight.w400, color: primary, height: 1.4),
-      bodyMedium: TextStyle(fontSize: base, fontWeight: FontWeight.w400, color: primary, height: 1.4),
-      bodySmall: TextStyle(fontSize: sm, fontWeight: FontWeight.w400, color: secondary, height: 1.4),
-      labelLarge: TextStyle(fontSize: base, fontWeight: FontWeight.w600, color: primary, height: 1.3),
-      labelMedium: TextStyle(fontSize: sm, fontWeight: FontWeight.w600, color: secondary, height: 1.3),
-      labelSmall: TextStyle(fontSize: xs, fontWeight: FontWeight.w600, color: secondary, height: 1.3),
+      displayLarge: TextStyle(
+          fontSize: display,
+          fontWeight: FontWeight.w600,
+          color: primary,
+          height: 1.15),
+      displayMedium: TextStyle(
+          fontSize: xxl,
+          fontWeight: FontWeight.w600,
+          color: primary,
+          height: 1.2),
+      displaySmall: TextStyle(
+          fontSize: xl,
+          fontWeight: FontWeight.w600,
+          color: primary,
+          height: 1.25),
+      headlineLarge: TextStyle(
+          fontSize: xxl,
+          fontWeight: FontWeight.w600,
+          color: primary,
+          height: 1.2),
+      headlineMedium: TextStyle(
+          fontSize: xl,
+          fontWeight: FontWeight.w600,
+          color: primary,
+          height: 1.25),
+      headlineSmall: TextStyle(
+          fontSize: lg,
+          fontWeight: FontWeight.w600,
+          color: primary,
+          height: 1.3),
+      titleLarge: TextStyle(
+          fontSize: lg,
+          fontWeight: FontWeight.w600,
+          color: primary,
+          height: 1.3),
+      titleMedium: TextStyle(
+          fontSize: md,
+          fontWeight: FontWeight.w600,
+          color: primary,
+          height: 1.3),
+      titleSmall: TextStyle(
+          fontSize: base,
+          fontWeight: FontWeight.w600,
+          color: primary,
+          height: 1.35),
+      bodyLarge: TextStyle(
+          fontSize: md,
+          fontWeight: FontWeight.w400,
+          color: primary,
+          height: 1.4),
+      bodyMedium: TextStyle(
+          fontSize: base,
+          fontWeight: FontWeight.w400,
+          color: primary,
+          height: 1.4),
+      bodySmall: TextStyle(
+          fontSize: sm,
+          fontWeight: FontWeight.w400,
+          color: secondary,
+          height: 1.4),
+      labelLarge: TextStyle(
+          fontSize: base,
+          fontWeight: FontWeight.w600,
+          color: primary,
+          height: 1.3),
+      labelMedium: TextStyle(
+          fontSize: sm,
+          fontWeight: FontWeight.w600,
+          color: secondary,
+          height: 1.3),
+      labelSmall: TextStyle(
+          fontSize: xs,
+          fontWeight: FontWeight.w600,
+          color: secondary,
+          height: 1.3),
     );
   }
 
@@ -259,13 +322,15 @@ class KodaraThemeExtension extends ThemeExtension<KodaraThemeExtension> {
   }
 
   @override
-  KodaraThemeExtension lerp(ThemeExtension<KodaraThemeExtension>? other, double t) {
+  KodaraThemeExtension lerp(
+      ThemeExtension<KodaraThemeExtension>? other, double t) {
     if (other is! KodaraThemeExtension) return this;
     return KodaraThemeExtension(
       accent: Color.lerp(accent, other.accent, t)!,
       accentDark: Color.lerp(accentDark, other.accentDark, t)!,
       accentTint: Color.lerp(accentTint, other.accentTint, t)!,
-      accentTintStrong: Color.lerp(accentTintStrong, other.accentTintStrong, t)!,
+      accentTintStrong:
+          Color.lerp(accentTintStrong, other.accentTintStrong, t)!,
       ink: Color.lerp(ink, other.ink, t)!,
       success: Color.lerp(success, other.success, t)!,
       warning: Color.lerp(warning, other.warning, t)!,
@@ -308,15 +373,16 @@ ThemeData buildKodaraTheme() {
     inversePrimary: KodaraColors.accentTintStrong,
   );
 
-  final textTheme = KodaraTypography.textTheme(KodaraColors.textPrimary, KodaraColors.textSecondary);
+  final textTheme = KodaraTypography.textTheme(
+      KodaraColors.textPrimary, KodaraColors.textSecondary);
 
   return ThemeData(
     useMaterial3: true,
     colorScheme: colorScheme,
     scaffoldBackgroundColor: KodaraColors.background,
     textTheme: textTheme,
-    splashColor: KodaraColors.accentDark.withOpacity(0.12),
-    highlightColor: KodaraColors.accentDark.withOpacity(0.08),
+    splashColor: KodaraColors.accentDark.withValues(alpha: 0.12),
+    highlightColor: KodaraColors.accentDark.withValues(alpha: 0.08),
     fontFamily: null,
     appBarTheme: const AppBarTheme(
       backgroundColor: KodaraColors.surface,
@@ -357,14 +423,16 @@ ThemeData buildKodaraTheme() {
       style: FilledButton.styleFrom(
         backgroundColor: KodaraColors.accent,
         foregroundColor: Colors.white,
-        disabledBackgroundColor: KodaraColors.accent.withOpacity(0.4),
+        disabledBackgroundColor: KodaraColors.accent.withValues(alpha: 0.4),
         minimumSize: const Size.fromHeight(52),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(KodaraRadius.sm)),
-        textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: KodaraTypography.base),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(KodaraRadius.sm)),
+        textStyle: const TextStyle(
+            fontWeight: FontWeight.w600, fontSize: KodaraTypography.base),
       ).copyWith(
         overlayColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.pressed)
-              ? KodaraColors.accentDark.withOpacity(0.16)
+              ? KodaraColors.accentDark.withValues(alpha: 0.16)
               : null,
         ),
       ),
@@ -374,21 +442,28 @@ ThemeData buildKodaraTheme() {
         foregroundColor: KodaraColors.accent,
         side: const BorderSide(color: KodaraColors.border),
         minimumSize: const Size.fromHeight(52),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(KodaraRadius.sm)),
-        textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: KodaraTypography.base),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(KodaraRadius.sm)),
+        textStyle: const TextStyle(
+            fontWeight: FontWeight.w600, fontSize: KodaraTypography.base),
       ).copyWith(
         overlayColor: WidgetStateProperty.resolveWith(
-          (states) => states.contains(WidgetState.pressed) ? KodaraColors.accentTint : null,
+          (states) => states.contains(WidgetState.pressed)
+              ? KodaraColors.accentTint
+              : null,
         ),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         foregroundColor: KodaraColors.accent,
-        textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: KodaraTypography.base),
+        textStyle: const TextStyle(
+            fontWeight: FontWeight.w600, fontSize: KodaraTypography.base),
       ).copyWith(
         overlayColor: WidgetStateProperty.resolveWith(
-          (states) => states.contains(WidgetState.pressed) ? KodaraColors.accentTint : null,
+          (states) => states.contains(WidgetState.pressed)
+              ? KodaraColors.accentTint
+              : null,
         ),
       ),
     ),
@@ -415,23 +490,27 @@ ThemeData buildKodaraTheme() {
         );
       }),
     ),
-    dividerTheme: const DividerThemeData(color: KodaraColors.border, thickness: 1, space: 1),
+    dividerTheme: const DividerThemeData(
+        color: KodaraColors.border, thickness: 1, space: 1),
     iconTheme: const IconThemeData(color: KodaraColors.textSecondary),
     listTileTheme: const ListTileThemeData(
       iconColor: KodaraColors.textSecondary,
       textColor: KodaraColors.textPrimary,
     ),
-    progressIndicatorTheme: const ProgressIndicatorThemeData(color: KodaraColors.accent),
+    progressIndicatorTheme:
+        const ProgressIndicatorThemeData(color: KodaraColors.accent),
     dialogTheme: DialogThemeData(
       backgroundColor: KodaraColors.surface,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(KodaraRadius.lg)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(KodaraRadius.lg)),
     ),
     bottomSheetTheme: const BottomSheetThemeData(
       backgroundColor: KodaraColors.surface,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(KodaraRadius.xl)),
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(KodaraRadius.xl)),
       ),
     ),
     pageTransitionsTheme: const PageTransitionsTheme(

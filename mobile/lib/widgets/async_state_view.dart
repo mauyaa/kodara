@@ -43,7 +43,9 @@ class AsyncStateView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              isNetworkError ? Icons.wifi_off_rounded : Icons.error_outline_rounded,
+              isNetworkError
+                  ? Icons.wifi_off_rounded
+                  : Icons.error_outline_rounded,
               size: 40,
               color: KodaraColors.error,
             ),
@@ -56,7 +58,10 @@ class AsyncStateView extends StatelessWidget {
             const SizedBox(height: KodaraSpacing.space2),
             Text(
               message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: KodaraColors.textSecondary),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: KodaraColors.textSecondary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: KodaraSpacing.space4),
@@ -107,20 +112,29 @@ class EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: KodaraSpacing.space8, horizontal: KodaraSpacing.space5),
+      padding: const EdgeInsets.symmetric(
+          vertical: KodaraSpacing.space8, horizontal: KodaraSpacing.space5),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 36, color: KodaraColors.textSecondary),
           const SizedBox(height: KodaraSpacing.space3),
-          Text(title, style: Theme.of(context).textTheme.titleMedium, textAlign: TextAlign.center),
+          Text(title,
+              style: Theme.of(context).textTheme.titleMedium,
+              textAlign: TextAlign.center),
           const SizedBox(height: KodaraSpacing.space2),
           Text(
             message,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: KodaraColors.textSecondary),
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(color: KodaraColors.textSecondary),
             textAlign: TextAlign.center,
           ),
-          if (action != null) ...[const SizedBox(height: KodaraSpacing.space4), action!],
+          if (action != null) ...[
+            const SizedBox(height: KodaraSpacing.space4),
+            action!
+          ],
         ],
       ),
     );
@@ -143,7 +157,8 @@ class NotConfiguredNotice extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: const [
-              Text('Not connected', style: TextStyle(fontWeight: FontWeight.w600)),
+              Text('Not connected',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
               SizedBox(height: KodaraSpacing.space2),
               Text(
                 'This build has no Supabase configuration. Provide SUPABASE_URL and SUPABASE_ANON_KEY with --dart-define to load live data.',

@@ -1,0 +1,2 @@
+-- Intentionally empty. Production-like data must be created through the
+-- authenticated product flows so RLS and ownership rules are exercised.

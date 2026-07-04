@@ -1,0 +1,16 @@
+<svg width="340" height="100" viewBox="0 0 340 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Kodara">
+  <style>
+    :root { color: #1d1a17; }
+    @media (prefers-color-scheme: dark) {
+      :root { color: #fafafa; }
+    }
+  </style>
+  <g transform="translate(0 5) scale(0.17578)">
+    <path d="M66 259 L256 53 L446 259" fill="none" stroke="currentColor" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+    <path fill="currentColor" d="M209 312 V239 A47 47 0 0 1 303 239 V312 Z"/>
+    <path fill="currentColor" d="M211 495 V397 A45 45 0 0 1 301 397 V495 Z"/>
+    <path fill="currentColor" d="M104 495 A85 85 0 0 1 104 325 H165 A24 24 0 0 1 189 349 V455 A40 40 0 0 1 149 495 H104 Z"/>
+    <path fill="currentColor" d="M408 325 A85 85 0 0 1 408 495 H363 A40 40 0 0 1 323 455 V349 A24 24 0 0 1 347 325 H408 Z"/>
+  </g>
+  <text x="106" y="69" font-family="Plus Jakarta Sans, ui-sans-serif, system-ui, sans-serif" font-size="52" font-weight="800" fill="currentColor" letter-spacing="-1.5">Kodara</text>
+</svg>

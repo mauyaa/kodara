@@ -1,296 +1,289 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/models.dart';
-import '../providers/payment_flow_provider.dart';
+import '../providers/providers.dart';
+import '../services/api_exception.dart';
 import '../theme/kodara_theme.dart';
 import 'formatters.dart';
 
-/// Bottom sheet driving the M-Pesa STK push flow end to end: confirm amount
-/// -> sending prompt -> waiting for the phone confirmation -> success or
-/// failure. This is the single highest-value mobile interaction per the
-/// product brief, so it gets a dedicated, carefully sequenced UX rather than
-/// a single button + snackbar.
-Future<void> showPaymentSheet(
-  BuildContext context, {
-  required TenantSummary tenant,
-  required InvoiceRecord invoice,
-}) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    isDismissible: true,
-    enableDrag: false,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(KodaraRadius.xl)),
-    ),
-    builder: (_) => PaymentSheetContent(tenant: tenant, invoice: invoice),
-  );
-}
+/// One-tap M-Pesa payment flow:
+///
+///   confirm amount -> STK push -> "check your phone" -> live result.
+///
+/// The idempotency key is generated once when the sheet opens and reused for
+/// every retry inside this sheet, so a dropped connection or an app restart
+/// mid-flow can never double-charge: the Edge Function returns the existing
+/// attempt for a repeated key instead of calling Daraja again.
+class PaymentSheet extends ConsumerStatefulWidget {
+  const PaymentSheet({
+    super.key,
+    required this.tenancy,
+    required this.suggestedAmount,
+    this.prefilledPhone,
+  });
 
-class PaymentSheetContent extends ConsumerWidget {
-  const PaymentSheetContent({super.key, required this.tenant, required this.invoice});
+  final Tenancy tenancy;
+  final double suggestedAmount;
+  final String? prefilledPhone;
 
-  final TenantSummary tenant;
-  final InvoiceRecord invoice;
+  static Future<void> show(
+    BuildContext context, {
+    required Tenancy tenancy,
+    required double suggestedAmount,
+    String? prefilledPhone,
+  }) =>
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        builder: (_) => Padding(
+          padding:
+              EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: PaymentSheet(
+            tenancy: tenancy,
+            suggestedAmount: suggestedAmount,
+            prefilledPhone: prefilledPhone,
+          ),
+        ),
+      );
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final flow = ref.watch(paymentFlowProvider);
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: KodaraSpacing.space5,
-          right: KodaraSpacing.space5,
-          top: KodaraSpacing.space5,
-          bottom: MediaQuery.of(context).viewInsets.bottom + KodaraSpacing.space5,
-        ),
-        child: AnimatedSize(
-          duration: KodaraMotion.slow,
-          curve: KodaraMotion.easeSpring,
-          child: _buildForStatus(context, ref, flow),
-        ),
-      ),
+  ConsumerState<PaymentSheet> createState() => _PaymentSheetState();
+}
+
+class _PaymentSheetState extends ConsumerState<PaymentSheet> {
+  late final TextEditingController _amount;
+  late final TextEditingController _phone;
+
+  /// One key per payment intent (per sheet open). Survives retries.
+  late final String _idempotencyKey;
+
+  String? _attemptId;
+  bool _busy = false;
+  String? _error;
+
+  static final _phonePattern = RegExp(r'^254[17][0-9]{8}$');
+
+  @override
+  void initState() {
+    super.initState();
+    _amount = TextEditingController(
+        text: widget.suggestedAmount > 0
+            ? widget.suggestedAmount.toStringAsFixed(0)
+            : '');
+    _phone = TextEditingController(text: widget.prefilledPhone ?? '');
+    final rand = Random.secure();
+    _idempotencyKey = List.generate(24, (_) => rand.nextInt(36))
+        .map((n) => n.toRadixString(36))
+        .join();
+  }
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    _phone.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pay() async {
+    final amount = int.tryParse(_amount.text.trim());
+    final phone = _phone.text.trim();
+    if (amount == null || amount <= 0) {
+      setState(() => _error = 'Enter a whole amount of at least KSh 1.');
+      return;
+    }
+    if (!_phonePattern.hasMatch(phone)) {
+      setState(() =>
+          _error = 'Enter your M-Pesa number as 2547XXXXXXXX or 2541XXXXXXXX.');
+      return;
+    }
+
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final attempt = await ref.read(kodaraServiceProvider).initiateStkPush(
+            tenancyId: widget.tenancy.id,
+            phone: phone,
+            amount: amount,
+            idempotencyKey: _idempotencyKey,
+          );
+      if (mounted) setState(() => _attemptId = attempt.id);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(KodaraSpacing.space5),
+      child: _attemptId == null ? _buildForm(context) : _buildProgress(context),
     );
   }
 
-  Widget _buildForStatus(BuildContext context, WidgetRef ref, PaymentFlowState flow) {
-    switch (flow.status) {
-      case PaymentFlowStatus.idle:
-        return _ConfirmStep(tenant: tenant, invoice: invoice);
-      case PaymentFlowStatus.sendingPrompt:
-        return const _LoadingStep(message: 'Sending the M-Pesa prompt…');
-      case PaymentFlowStatus.waitingForConfirmation:
-        return _WaitingStep(phone: tenant.phone);
-      case PaymentFlowStatus.success:
-        return _SuccessStep(amount: flow.amount ?? invoice.totalAmount, reference: flow.reference);
-      case PaymentFlowStatus.failure:
-        return _FailureStep(
-          message: flow.errorMessage ?? 'The payment could not be completed.',
-          onRetry: () {
-            ref.read(paymentFlowProvider.notifier).reset();
-          },
-        );
-    }
-  }
-}
-
-class _ConfirmStep extends ConsumerWidget {
-  const _ConfirmStep({required this.tenant, required this.invoice});
-  final TenantSummary tenant;
-  final InvoiceRecord invoice;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget _buildForm(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            const Expanded(
-              child: Text(
-                'Confirm payment',
-                style: TextStyle(fontSize: KodaraTypography.xl, fontWeight: FontWeight.w600),
-              ),
-            ),
-            IconButton(
-              onPressed: () => Navigator.of(context).pop(),
-              icon: const Icon(Icons.close_rounded),
-            ),
-          ],
-        ),
+        Text('Pay rent',
+            style: Theme.of(context)
+                .textTheme
+                .titleLarge
+                ?.copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: KodaraSpacing.space2),
-        Container(
-          padding: const EdgeInsets.all(KodaraSpacing.space5),
-          decoration: BoxDecoration(
-            color: KodaraColors.accentTint,
-            borderRadius: BorderRadius.circular(KodaraRadius.lg),
+        Text(
+          '${widget.tenancy.propertyName ?? 'Your home'} — Unit ${widget.tenancy.unitName ?? ''}',
+          style: Theme.of(context)
+              .textTheme
+              .bodyMedium
+              ?.copyWith(color: KodaraColors.textSecondary),
+        ),
+        const SizedBox(height: KodaraSpacing.space5),
+        if (_error != null) ...[
+          Container(
+            padding: const EdgeInsets.all(KodaraSpacing.space3),
+            decoration: BoxDecoration(
+              color: KodaraColors.errorTint,
+              borderRadius: BorderRadius.circular(KodaraRadius.md),
+            ),
+            child: Text(_error!,
+                style: const TextStyle(color: KodaraColors.error)),
           ),
-          child: Column(
-            children: [
-              const Text('Amount', style: TextStyle(fontSize: KodaraTypography.xs, color: KodaraColors.textSecondary)),
-              const SizedBox(height: KodaraSpacing.space1),
-              Text(
-                formatKes(invoice.totalAmount),
-                style: const TextStyle(
-                  fontSize: KodaraTypography.display,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: -0.5,
-                  color: KodaraColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: KodaraSpacing.space2),
-              Text(
-                'to ${tenant.propertyName}',
-                style: const TextStyle(fontSize: KodaraTypography.xs, color: KodaraColors.textSecondary),
-              ),
-            ],
+          const SizedBox(height: KodaraSpacing.space4),
+        ],
+        TextField(
+          controller: _amount,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Amount (KES)',
+            prefixText: 'KES ',
+          ),
+        ),
+        const SizedBox(height: KodaraSpacing.space4),
+        TextField(
+          controller: _phone,
+          keyboardType: TextInputType.phone,
+          decoration: const InputDecoration(
+            labelText: 'M-Pesa phone',
+            hintText: '254712345678',
           ),
         ),
         const SizedBox(height: KodaraSpacing.space5),
-        FilledButton.icon(
-          onPressed: () {
-            ref.read(paymentFlowProvider.notifier).startPayment(tenant: tenant, invoice: invoice);
-          },
-          icon: const Icon(Icons.phone_iphone_rounded, size: 18),
-          label: Text('Send prompt to ${tenant.phone}'),
+        FilledButton(
+          onPressed: _busy ? null : _pay,
+          child: _busy
+              ? const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Send M-Pesa prompt'),
         ),
         const SizedBox(height: KodaraSpacing.space3),
-        const Text(
-          'You will confirm securely with your M-Pesa PIN.',
+        Text(
+          'You will get an M-Pesa prompt on your phone to confirm.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: KodaraTypography.xs, color: KodaraColors.textSecondary),
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall
+              ?.copyWith(color: KodaraColors.textSecondary),
         ),
       ],
     );
   }
-}
 
-class _LoadingStep extends StatelessWidget {
-  const _LoadingStep({required this.message});
-  final String message;
+  Widget _buildProgress(BuildContext context) {
+    final attemptAsync = ref.watch(attemptStreamProvider(_attemptId!));
+    final attempt = attemptAsync.valueOrNull;
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: KodaraSpacing.space6),
-      child: Column(
+    final Widget body;
+    if (attempt == null || !attempt.isTerminal) {
+      body = Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const CircularProgressIndicator(),
-          const SizedBox(height: KodaraSpacing.space5),
-          Text(message, style: const TextStyle(fontWeight: FontWeight.w600)),
-        ],
-      ),
-    );
-  }
-}
-
-class _WaitingStep extends StatelessWidget {
-  const _WaitingStep({required this.phone});
-  final String phone;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: KodaraSpacing.space5),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(
-            width: 56,
-            height: 56,
-            child: CircularProgressIndicator(strokeWidth: 4),
-          ),
-          const SizedBox(height: KodaraSpacing.space5),
-          const Text(
-            'Check your phone',
-            style: TextStyle(fontSize: KodaraTypography.lg, fontWeight: FontWeight.w600),
-          ),
+          const SizedBox(height: KodaraSpacing.space4),
+          Text('Check your phone',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: KodaraSpacing.space2),
           Text(
-            'Enter your M-Pesa PIN on $phone to complete the payment. This page will update automatically.',
+            'Enter your M-Pesa PIN on the prompt to complete the payment. '
+            'This screen updates automatically.',
             textAlign: TextAlign.center,
-            style: const TextStyle(color: KodaraColors.textSecondary),
-          ),
-          const SizedBox(height: KodaraSpacing.space5),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close — I will check my balance later'),
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(color: KodaraColors.textSecondary),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _SuccessStep extends StatelessWidget {
-  const _SuccessStep({required this.amount, required this.reference});
-  final double amount;
-  final String? reference;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 64,
-          height: 64,
-          decoration: const BoxDecoration(color: KodaraColors.successTint, shape: BoxShape.circle),
-          child: const Icon(Icons.check_rounded, color: KodaraColors.success, size: 32),
-        ),
-        const SizedBox(height: KodaraSpacing.space4),
-        const Text(
-          'Payment confirmed',
-          style: TextStyle(fontSize: KodaraTypography.xl, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: KodaraSpacing.space2),
-        Text(
-          formatKes(amount),
-          style: const TextStyle(fontSize: KodaraTypography.xxl, fontWeight: FontWeight.w700, color: KodaraColors.success),
-        ),
-        const SizedBox(height: KodaraSpacing.space1),
-        Text(
-          'M-Pesa · ${reference ?? 'Confirmed'}',
-          style: const TextStyle(color: KodaraColors.textSecondary, fontSize: KodaraTypography.sm),
-        ),
-        const SizedBox(height: KodaraSpacing.space6),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Back home'),
+      );
+    } else if (attempt.status == 'succeeded') {
+      body = Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.check_circle_rounded,
+              color: KodaraColors.success, size: 56),
+          const SizedBox(height: KodaraSpacing.space4),
+          Text('Payment received',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: KodaraSpacing.space2),
+          Text(
+            '${formatKes(attempt.requestedAmount)} confirmed. Thank you!',
+            textAlign: TextAlign.center,
           ),
-        ),
-      ],
-    );
-  }
-}
+          const SizedBox(height: KodaraSpacing.space5),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Done'),
+          ),
+        ],
+      );
+    } else {
+      body = Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.error_rounded, color: KodaraColors.error, size: 56),
+          const SizedBox(height: KodaraSpacing.space4),
+          Text('Payment not completed',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: KodaraSpacing.space2),
+          Text(
+            attempt.resultDescription ??
+                'The M-Pesa request was cancelled or timed out.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(color: KodaraColors.textSecondary),
+          ),
+          const SizedBox(height: KodaraSpacing.space5),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      );
+    }
 
-class _FailureStep extends StatelessWidget {
-  const _FailureStep({required this.message, required this.onRetry});
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 64,
-          height: 64,
-          decoration: const BoxDecoration(color: KodaraColors.errorTint, shape: BoxShape.circle),
-          child: const Icon(Icons.priority_high_rounded, color: KodaraColors.error, size: 32),
-        ),
-        const SizedBox(height: KodaraSpacing.space4),
-        const Text(
-          'Payment not completed',
-          style: TextStyle(fontSize: KodaraTypography.lg, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: KodaraSpacing.space2),
-        Text(message, textAlign: TextAlign.center, style: const TextStyle(color: KodaraColors.textSecondary)),
-        const SizedBox(height: KodaraSpacing.space5),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Close'),
-              ),
-            ),
-            const SizedBox(width: KodaraSpacing.space3),
-            Expanded(
-              child: FilledButton(
-                onPressed: onRetry,
-                child: const Text('Try again'),
-              ),
-            ),
-          ],
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: KodaraSpacing.space5),
+      child: body,
     );
   }
 }

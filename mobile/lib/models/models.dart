@@ -1,322 +1,220 @@
-// Lean domain models mirroring the shapes returned by Supabase table/view
-// queries (see lib/types.ts and docs/API_SPEC.md on the web app). Fields are
-// nullable wherever the underlying column can be null or the view might omit
-// it, so a partially-populated row never throws during parsing.
+/// Domain models mirroring the Supabase schema in
+/// supabase/migrations/20260701000000_core_schema.sql. Field names match the
+/// generated web types (generated/database.types.ts); keep the two in sync by
+/// regenerating after any migration change.
+library;
 
-T? _asOrNull<T>(Object? value) => value is T ? value : null;
+double _asDouble(dynamic v) =>
+    v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '') ?? 0;
 
-double _toDouble(Object? value, [double fallback = 0]) {
-  if (value == null) return fallback;
-  if (value is num) return value.toDouble();
-  if (value is String) return double.tryParse(value) ?? fallback;
-  return fallback;
-}
+DateTime? _asDate(dynamic v) =>
+    v == null ? null : DateTime.tryParse(v.toString());
 
-/// Tolerant int parsing: PostgREST normally serializes Postgres integer
-/// columns without a decimal point, but this guards against a stray
-/// `5.0`-style numeric value being returned for an int field.
-int? _toIntOrNull(Object? value) {
-  if (value == null) return null;
-  if (value is int) return value;
-  if (value is num) return value.round();
-  if (value is String) return int.tryParse(value) ?? double.tryParse(value)?.round();
-  return null;
-}
-
-DateTime? _toDate(Object? value) {
-  if (value == null) return null;
-  if (value is DateTime) return value;
-  if (value is String && value.isNotEmpty) return DateTime.tryParse(value);
-  return null;
-}
-
-/// A tenant row from the `tenant_directory` view, joined/denormalized with
-/// profile, unit, and property fields.
-class TenantSummary {
-  final String id;
-  final String userId;
-  final String unitId;
-  final String fullName;
-  final String phone;
-  final String unitName;
-  final String propertyName;
-  final double outstandingBalance;
-  final DateTime? lastPaymentDate;
-  final String status;
-
-  const TenantSummary({
+/// An active or past lease binding the signed-in tenant to a unit.
+class Tenancy {
+  const Tenancy({
     required this.id,
-    required this.userId,
     required this.unitId,
-    required this.fullName,
-    required this.phone,
-    required this.unitName,
-    required this.propertyName,
-    required this.outstandingBalance,
-    required this.lastPaymentDate,
+    required this.tenantId,
+    required this.rentAmount,
+    required this.billingDay,
+    required this.paymentReference,
+    required this.startDate,
     required this.status,
+    this.endDate,
+    this.unitName,
+    this.propertyName,
+    this.propertyAddress,
   });
 
-  factory TenantSummary.fromJson(Map<String, dynamic> json) => TenantSummary(
-        id: json['id']?.toString() ?? '',
-        userId: json['user_id']?.toString() ?? '',
-        unitId: json['unit_id']?.toString() ?? '',
-        fullName: _asOrNull<String>(json['full_name']) ?? 'Tenant',
-        phone: _asOrNull<String>(json['phone']) ?? '',
-        unitName: _asOrNull<String>(json['unit_name']) ?? '—',
-        propertyName: _asOrNull<String>(json['property_name']) ?? '—',
-        outstandingBalance: _toDouble(json['outstanding_balance']),
-        lastPaymentDate: _toDate(json['last_payment_date']),
-        status: _asOrNull<String>(json['status']) ?? 'active',
-      );
-}
-
-class PropertySummary {
-  final String id;
-  final String name;
-  final String address;
-  final String propertyType;
-  final List<UnitSummary> units;
-
-  const PropertySummary({
-    required this.id,
-    required this.name,
-    required this.address,
-    required this.propertyType,
-    required this.units,
-  });
-
-  int get occupiedCount => units.where((u) => u.status == 'occupied').length;
-
-  factory PropertySummary.fromJson(Map<String, dynamic> json) {
-    final rawUnits = json['units'];
-    final units = rawUnits is List
-        ? rawUnits
-            .whereType<Map>()
-            .map((u) => UnitSummary.fromJson(Map<String, dynamic>.from(u)))
-            .toList()
-        : <UnitSummary>[];
-    return PropertySummary(
-      id: json['id']?.toString() ?? '',
-      name: _asOrNull<String>(json['name']) ?? 'Property',
-      address: _asOrNull<String>(json['address']) ?? '',
-      propertyType: _asOrNull<String>(json['property_type']) ?? 'apartment',
-      units: units,
-    );
-  }
-}
-
-class UnitSummary {
-  final String id;
-  final String propertyId;
-  final String unitName;
-  final int? floor;
-  final double monthlyRent;
-  final String status;
-
-  const UnitSummary({
-    required this.id,
-    required this.propertyId,
-    required this.unitName,
-    required this.floor,
-    required this.monthlyRent,
-    required this.status,
-  });
-
-  factory UnitSummary.fromJson(Map<String, dynamic> json) => UnitSummary(
-        id: json['id']?.toString() ?? '',
-        propertyId: json['property_id']?.toString() ?? '',
-        unitName: _asOrNull<String>(json['unit_name']) ?? '—',
-        floor: _toIntOrNull(json['floor']),
-        monthlyRent: _toDouble(json['monthly_rent']),
-        status: _asOrNull<String>(json['status']) ?? 'vacant',
-      );
-}
-
-class MaintenanceItem {
   final String id;
   final String unitId;
   final String tenantId;
-  final String title;
-  final String description;
-  final String category;
-  final String priority;
+  final double rentAmount;
+  final int billingDay;
+  final String paymentReference;
+  final DateTime startDate;
+  final DateTime? endDate;
   final String status;
-  final String? tenantName;
   final String? unitName;
-  final DateTime? createdAt;
-  final DateTime? updatedAt;
+  final String? propertyName;
+  final String? propertyAddress;
 
-  const MaintenanceItem({
-    required this.id,
-    required this.unitId,
-    required this.tenantId,
-    required this.title,
-    required this.description,
-    required this.category,
-    required this.priority,
-    required this.status,
-    required this.tenantName,
-    required this.unitName,
-    required this.createdAt,
-    required this.updatedAt,
-  });
-
-  factory MaintenanceItem.fromJson(Map<String, dynamic> json) {
-    // The /api/maintenance GET route nests tenant->profile and unit objects;
-    // direct Supabase table reads return flat columns. Handle both.
-    final tenantJoin = json['tenant'];
-    final unitJoin = json['unit'];
-    String? tenantName;
-    if (tenantJoin is Map) {
-      final profile = tenantJoin['profile'];
-      if (profile is Map) tenantName = _asOrNull<String>(profile['full_name']);
-    }
-    String? unitName;
-    if (unitJoin is Map) {
-      unitName = _asOrNull<String>(unitJoin['unit_name']);
-    }
-    return MaintenanceItem(
-      id: json['id']?.toString() ?? '',
-      unitId: json['unit_id']?.toString() ?? '',
-      tenantId: json['tenant_id']?.toString() ?? '',
-      title: _asOrNull<String>(json['title']) ??
-          _asOrNull<String>(json['category']) ??
-          'Maintenance request',
-      description: _asOrNull<String>(json['description']) ?? '',
-      category: _asOrNull<String>(json['category']) ?? 'general',
-      priority: _asOrNull<String>(json['priority']) ?? 'medium',
-      status: _asOrNull<String>(json['status']) ?? 'submitted',
-      tenantName: tenantName ?? _asOrNull<String>(json['tenant_name']),
-      unitName: unitName ?? _asOrNull<String>(json['unit_name']),
-      createdAt: _toDate(json['created_at']),
-      updatedAt: _toDate(json['updated_at']),
+  factory Tenancy.fromJson(Map<String, dynamic> json) {
+    final unit = json['unit'] as Map<String, dynamic>?;
+    final property = unit?['property'] as Map<String, dynamic>?;
+    return Tenancy(
+      id: json['id'] as String,
+      unitId: json['unit_id'] as String,
+      tenantId: json['tenant_id'] as String,
+      rentAmount: _asDouble(json['rent_amount']),
+      billingDay: (json['billing_day'] as num).toInt(),
+      paymentReference: json['payment_reference'] as String,
+      startDate: _asDate(json['start_date'])!,
+      endDate: _asDate(json['end_date']),
+      status: json['status'] as String,
+      unitName: unit?['name'] as String?,
+      propertyName: property?['name'] as String?,
+      propertyAddress: property?['address'] as String?,
     );
+  }
+
+  /// The next date rent is due: the billing day of the current month, or of
+  /// next month if it has already passed.
+  DateTime get nextDueDate {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final thisMonth = DateTime(now.year, now.month, billingDay);
+    if (!thisMonth.isBefore(today)) return thisMonth;
+    return DateTime(now.year, now.month + 1, billingDay);
   }
 }
 
-class PaymentRecord {
-  final String id;
-  final String? invoiceId;
-  final String tenantId;
-  final double amount;
-  final String status; // initiated | processing | completed | failed | ...
-  final String? reference;
-  final String? mpesaReceipt;
-  final DateTime? createdAt;
-  final String? tenantName;
+/// Row from the tenancy_balances view (security invoker; RLS applies).
+class TenancyBalance {
+  const TenancyBalance({
+    required this.tenancyId,
+    required this.totalDue,
+    required this.totalPaid,
+    required this.balance,
+  });
 
-  const PaymentRecord({
+  final String tenancyId;
+  final double totalDue;
+  final double totalPaid;
+  final double balance;
+
+  factory TenancyBalance.fromJson(Map<String, dynamic> json) => TenancyBalance(
+        tenancyId: json['tenancy_id'] as String,
+        totalDue: _asDouble(json['total_due']),
+        totalPaid: _asDouble(json['total_paid']),
+        balance: _asDouble(json['balance']),
+      );
+}
+
+/// A confirmed M-Pesa payment attached to the tenant's tenancy.
+class Payment {
+  const Payment({
     required this.id,
-    required this.invoiceId,
-    required this.tenantId,
     required this.amount,
     required this.status,
-    required this.reference,
-    required this.mpesaReceipt,
+    required this.reconciliationStatus,
     required this.createdAt,
-    required this.tenantName,
+    this.providerTransactionId,
+    this.paidAt,
   });
 
-  factory PaymentRecord.fromJson(Map<String, dynamic> json) {
-    String? tenantName;
-    final tenantJoin = json['tenant'];
-    if (tenantJoin is Map) {
-      final profile = tenantJoin['profile'];
-      if (profile is Map) tenantName = _asOrNull<String>(profile['full_name']);
-    }
-    return PaymentRecord(
-      id: json['id']?.toString() ?? '',
-      invoiceId: json['invoice_id']?.toString(),
-      tenantId: json['tenant_id']?.toString() ?? '',
-      amount: _toDouble(json['amount']),
-      status: _asOrNull<String>(json['status']) ?? 'initiated',
-      reference: _asOrNull<String>(json['reference']),
-      mpesaReceipt: _asOrNull<String>(json['mpesa_receipt']),
-      createdAt: _toDate(json['created_at']),
-      tenantName: tenantName ?? _asOrNull<String>(json['tenant_name']),
-    );
-  }
-}
-
-class InvoiceRecord {
   final String id;
-  final double totalAmount;
+  final double amount;
   final String status;
-  final DateTime? dueDate;
+  final String reconciliationStatus;
+  final DateTime createdAt;
+  final String? providerTransactionId;
+  final DateTime? paidAt;
 
-  const InvoiceRecord({
+  factory Payment.fromJson(Map<String, dynamic> json) => Payment(
+        id: json['id'] as String,
+        amount: _asDouble(json['amount']),
+        status: json['status'] as String,
+        reconciliationStatus: json['reconciliation_status'] as String,
+        createdAt: _asDate(json['created_at'])!,
+        providerTransactionId: json['provider_transaction_id'] as String?,
+        paidAt: _asDate(json['paid_at']),
+      );
+}
+
+/// An STK push attempt. The tenant app watches this row after initiating a
+/// payment: pending -> succeeded (webhook confirmed) or failed (cancelled,
+/// timed out, or rejected).
+class PaymentAttempt {
+  const PaymentAttempt({
     required this.id,
-    required this.totalAmount,
     required this.status,
-    required this.dueDate,
+    required this.requestedAmount,
+    this.resultCode,
+    this.resultDescription,
   });
 
-  factory InvoiceRecord.fromJson(Map<String, dynamic> json) => InvoiceRecord(
-        id: json['id']?.toString() ?? '',
-        totalAmount: _toDouble(json['total_amount']),
-        status: _asOrNull<String>(json['status']) ?? 'sent',
-        dueDate: _toDate(json['due_date']),
+  final String id;
+  final String status;
+  final double requestedAmount;
+  final int? resultCode;
+  final String? resultDescription;
+
+  factory PaymentAttempt.fromJson(Map<String, dynamic> json) => PaymentAttempt(
+        id: json['id'] as String,
+        status: json['status'] as String,
+        requestedAmount: _asDouble(json['requested_amount']),
+        resultCode: (json['result_code'] as num?)?.toInt(),
+        resultDescription: json['result_description'] as String?,
       );
+
+  bool get isTerminal =>
+      status == 'succeeded' || status == 'failed' || status == 'uncertain';
 }
 
-class MessageItem {
-  final String id;
-  final String senderId;
-  final String receiverId;
-  final String senderName;
-  final String? subject;
-  final String content;
-  final bool read;
-  final DateTime? createdAt;
-
-  const MessageItem({
+class MaintenanceRequest {
+  const MaintenanceRequest({
     required this.id,
-    required this.senderId,
-    required this.receiverId,
-    required this.senderName,
-    required this.subject,
-    required this.content,
-    required this.read,
-    required this.createdAt,
-  });
-
-  factory MessageItem.fromJson(Map<String, dynamic> json) => MessageItem(
-        id: json['id']?.toString() ?? '',
-        senderId: json['sender_id']?.toString() ?? '',
-        receiverId: json['receiver_id']?.toString() ?? '',
-        senderName: _asOrNull<String>(json['sender_name']) ?? 'Kodara',
-        subject: _asOrNull<String>(json['subject']),
-        content: _asOrNull<String>(json['content']) ?? '',
-        read: json['read'] == true,
-        createdAt: _toDate(json['created_at']),
-      );
-}
-
-class NotificationItem {
-  final String id;
-  final String type;
-  final String title;
-  final String message;
-  final bool read;
-  final DateTime? createdAt;
-
-  const NotificationItem({
-    required this.id,
-    required this.type,
+    required this.tenancyId,
     required this.title,
-    required this.message,
-    required this.read,
+    required this.description,
+    required this.priority,
+    required this.status,
+    required this.photoPaths,
     required this.createdAt,
   });
 
-  factory NotificationItem.fromJson(Map<String, dynamic> json) =>
-      NotificationItem(
-        id: json['id']?.toString() ?? '',
-        type: _asOrNull<String>(json['type']) ?? 'system_alert',
-        title: _asOrNull<String>(json['title']) ?? 'Notification',
-        message: _asOrNull<String>(json['message']) ?? '',
-        read: json['read'] == true,
-        createdAt: _toDate(json['created_at']),
+  final String id;
+  final String tenancyId;
+  final String title;
+  final String description;
+
+  /// One of: low, normal, high, emergency (schema check constraint).
+  final String priority;
+
+  /// One of: pending, in_progress, completed (transitions enforced by DB).
+  final String status;
+  final List<String> photoPaths;
+  final DateTime createdAt;
+
+  factory MaintenanceRequest.fromJson(Map<String, dynamic> json) =>
+      MaintenanceRequest(
+        id: json['id'] as String,
+        tenancyId: json['tenancy_id'] as String,
+        title: json['title'] as String,
+        description: json['description'] as String,
+        priority: json['priority'] as String,
+        status: json['status'] as String,
+        photoPaths: ((json['photo_paths'] as List?) ?? const [])
+            .map((e) => e.toString())
+            .toList(),
+        createdAt: _asDate(json['created_at'])!,
+      );
+}
+
+/// A pending invitation addressed to the signed-in tenant's phone number.
+class TenantInvitation {
+  const TenantInvitation({
+    required this.id,
+    required this.rentAmount,
+    required this.billingDay,
+    required this.startDate,
+    required this.expiresAt,
+  });
+
+  final String id;
+  final double rentAmount;
+  final int billingDay;
+  final DateTime startDate;
+  final DateTime expiresAt;
+
+  factory TenantInvitation.fromJson(Map<String, dynamic> json) =>
+      TenantInvitation(
+        id: json['id'] as String,
+        rentAmount: _asDouble(json['rent_amount']),
+        billingDay: (json['billing_day'] as num).toInt(),
+        startDate: _asDate(json['start_date'])!,
+        expiresAt: _asDate(json['expires_at'])!,
       );
 }

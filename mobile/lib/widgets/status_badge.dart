@@ -12,7 +12,15 @@ class StatusBadge extends StatelessWidget {
 
   final String value;
 
-  static const _success = {'completed', 'occupied', 'active', 'paid'};
+  static const _success = {
+    'completed',
+    'occupied',
+    'active',
+    'paid',
+    'succeeded',
+    'matched_auto',
+    'matched_manual',
+  };
   static const _warning = {
     'initiated',
     'vacant',
@@ -21,6 +29,8 @@ class StatusBadge extends StatelessWidget {
     'failed',
     'cancelled',
     'rejected',
+    'unmatched',
+    'expired',
   };
 
   @override
@@ -38,14 +48,18 @@ class StatusBadge extends StatelessWidget {
       foreground = KodaraColors.accentDark;
     }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: KodaraSpacing.space3, vertical: KodaraSpacing.space1),
+      padding: const EdgeInsets.symmetric(
+          horizontal: KodaraSpacing.space3, vertical: KodaraSpacing.space1),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(KodaraRadius.full),
       ),
       child: Text(
         _titleCase(value),
-        style: TextStyle(color: foreground, fontWeight: FontWeight.w600, fontSize: KodaraTypography.xs),
+        style: TextStyle(
+            color: foreground,
+            fontWeight: FontWeight.w600,
+            fontSize: KodaraTypography.xs),
       ),
     );
   }
