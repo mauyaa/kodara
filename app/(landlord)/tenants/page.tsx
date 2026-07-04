@@ -14,7 +14,12 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 
-export default async function TenantsPage() {
+export default async function TenantsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; status?: string }>;
+}) {
+  const { q, status } = await searchParams;
   const supabase = await createClient();
 
   // Fetch tenancies joined with profiles, units, and properties
@@ -45,6 +50,29 @@ export default async function TenantsPage() {
     (balances || []).map((b) => [b.tenancy_id, Number(b.balance)])
   );
 
+  const query = q?.trim().toLowerCase() ?? "";
+  const statusFilter = ["active", "pending", "ended"].includes(status ?? "")
+    ? status
+    : undefined;
+
+  const filtered = (tenancies || []).filter((tenancy) => {
+    if (statusFilter && tenancy.status !== statusFilter) return false;
+    if (!query) return true;
+    const unit = tenancy.units;
+    const property =
+      unit && Array.isArray(unit.properties) ? unit.properties[0] : unit?.properties;
+    const haystack = [
+      tenancy.profiles?.full_name,
+      tenancy.profiles?.phone,
+      property?.name,
+      unit?.name,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    return haystack.includes(query);
+  });
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -68,20 +96,33 @@ export default async function TenantsPage() {
       <Card className="premium-card overflow-hidden">
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border/40 pb-4">
           <CardTitle className="text-base font-semibold">All Tenants</CardTitle>
-          <div className="flex items-center gap-2">
+          <form action="/tenants" className="flex flex-wrap items-center gap-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
-                type="text"
-                placeholder="Search tenants..."
-                className="h-10 w-[250px] rounded-xl border border-border/50 bg-secondary/30 pl-9 pr-3 text-[14px] outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
+                type="search"
+                name="q"
+                defaultValue={q ?? ""}
+                placeholder="Search tenants, units..."
+                className="h-10 w-[220px] rounded-xl border border-border/50 bg-secondary/30 pl-9 pr-3 text-[14px] outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
               />
             </div>
-            <Button variant="outline" size="sm" className="h-10 rounded-xl px-4">
+            <select
+              name="status"
+              defaultValue={statusFilter ?? ""}
+              aria-label="Filter by lease status"
+              className="h-10 rounded-xl border border-border/50 bg-secondary/30 px-3 text-[14px] outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all"
+            >
+              <option value="">All statuses</option>
+              <option value="active">Active</option>
+              <option value="pending">Pending</option>
+              <option value="ended">Ended</option>
+            </select>
+            <Button type="submit" variant="outline" size="sm" className="h-10 rounded-xl px-4">
               <Filter className="mr-2 h-4 w-4" />
-              Filter
+              Apply
             </Button>
-          </div>
+          </form>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
@@ -94,13 +135,15 @@ export default async function TenantsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(!tenancies || tenancies.length === 0) ? (
+              {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                    Tenants appear here once you onboard them to a unit.
+                  <TableCell colSpan={4} className="text-center py-8 text-[13px] text-muted-foreground">
+                    {query || statusFilter
+                      ? "No tenants match this search."
+                      : "Tenants appear here once you onboard them to a unit."}
                   </TableCell>
                 </TableRow>
-              ) : tenancies.map((tenancy) => {
+              ) : filtered.map((tenancy) => {
                 const profile = tenancy.profiles;
                 const unit = tenancy.units;
                 const property = unit && Array.isArray(unit.properties) ? unit.properties[0] : unit?.properties;

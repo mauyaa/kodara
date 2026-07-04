@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/models.dart';
@@ -101,6 +102,7 @@ class _PaymentSheetState extends ConsumerState<PaymentSheet> {
       return;
     }
 
+    HapticFeedback.lightImpact();
     setState(() {
       _busy = true;
       _error = null;
@@ -112,6 +114,7 @@ class _PaymentSheetState extends ConsumerState<PaymentSheet> {
             amount: amount,
             idempotencyKey: _idempotencyKey,
           );
+      HapticFeedback.mediumImpact();
       if (mounted) setState(() => _attemptId = attempt.id);
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);

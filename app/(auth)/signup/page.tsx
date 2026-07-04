@@ -25,6 +25,20 @@ export default async function SignupPage(props: { searchParams: Promise<{ error?
       )}
 
       <form action={signup} className="space-y-6">
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium text-foreground">I am a</legend>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-border/60 bg-secondary/30 px-3 py-2.5 text-[14px] font-medium text-foreground transition-all has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:checked]:text-primary">
+              <input type="radio" name="account_type" value="landlord" defaultChecked className="sr-only" />
+              Landlord
+            </label>
+            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-border/60 bg-secondary/30 px-3 py-2.5 text-[14px] font-medium text-foreground transition-all has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:checked]:text-primary">
+              <input type="radio" name="account_type" value="tenant" className="sr-only" />
+              Tenant
+            </label>
+          </div>
+        </fieldset>
+
         <div className="space-y-2">
           <Label htmlFor="full_name" className="text-foreground font-medium">Full Name</Label>
           <Input

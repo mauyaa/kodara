@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/models.dart';
@@ -7,6 +8,7 @@ import '../services/api_exception.dart';
 import '../theme/kodara_theme.dart';
 import '../widgets/async_state_view.dart';
 import '../widgets/formatters.dart';
+import '../widgets/kodara_logo.dart';
 import '../widgets/maintenance_request_sheet.dart';
 import '../widgets/payment_sheet.dart';
 import '../widgets/status_badge.dart';
@@ -23,7 +25,7 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: KodaraColors.background,
       appBar: AppBar(
-        title: const Text('Kodara'),
+        title: const KodaraLockup(),
         actions: [
           IconButton(
             tooltip: 'Sign out',
@@ -64,12 +66,14 @@ class _InvitationGateState extends ConsumerState<_InvitationGate> {
   String? _error;
 
   Future<void> _accept(TenantInvitation invitation) async {
+    HapticFeedback.lightImpact();
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
       await ref.read(kodaraServiceProvider).acceptInvitation(invitation.id);
+      HapticFeedback.mediumImpact();
       widget.onAccepted();
     } on ApiException catch (e) {
       setState(() => _error = e.message);
@@ -201,21 +205,31 @@ class _TenantHome extends ConsumerWidget {
             decoration: BoxDecoration(
               color: KodaraColors.ink,
               borderRadius: BorderRadius.circular(KodaraRadius.xl),
+              boxShadow: KodaraShadows.accent,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${tenancy.propertyName ?? 'Your home'} · Unit ${tenancy.unitName ?? ''}',
-                  style: const TextStyle(color: KodaraColors.onInkSecondary),
+                  '${tenancy.propertyName ?? 'Your home'} · Unit ${tenancy.unitName ?? ''}'
+                      .toUpperCase(),
+                  style: const TextStyle(
+                    color: KodaraColors.onInkSecondary,
+                    fontSize: KodaraTypography.xs,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.4,
+                  ),
                 ),
                 const SizedBox(height: KodaraSpacing.space3),
-                Text(
-                  balance == null ? '—' : formatKes(balance.balance),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: KodaraTypography.hero,
-                    fontWeight: FontWeight.w800,
+                AnimatedSwitcher(
+                  duration: KodaraMotion.base,
+                  switchInCurve: KodaraMotion.easeStandard,
+                  switchOutCurve: KodaraMotion.easeStandard,
+                  child: Text(
+                    balance == null ? '—' : formatKes(balance.balance),
+                    key: ValueKey<String>(
+                        balance == null ? 'pending' : '${balance.balance}'),
+                    style: KodaraTypography.heroStyle,
                   ),
                 ),
                 const SizedBox(height: KodaraSpacing.space1),
@@ -233,13 +247,16 @@ class _TenantHome extends ConsumerWidget {
                       backgroundColor: KodaraColors.accent,
                       foregroundColor: Colors.white,
                     ),
-                    onPressed: () => PaymentSheet.show(
-                      context,
-                      tenancy: tenancy,
-                      suggestedAmount: balance != null && balance.balance > 0
-                          ? balance.balance
-                          : tenancy.rentAmount,
-                    ),
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      PaymentSheet.show(
+                        context,
+                        tenancy: tenancy,
+                        suggestedAmount: balance != null && balance.balance > 0
+                            ? balance.balance
+                            : tenancy.rentAmount,
+                      );
+                    },
                     child: const Text('Pay with M-Pesa'),
                   ),
                 ),

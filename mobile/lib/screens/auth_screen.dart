@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config.dart';
@@ -6,6 +7,7 @@ import '../providers/providers.dart';
 import '../services/api_exception.dart';
 import '../theme/kodara_theme.dart';
 import '../widgets/async_state_view.dart';
+import '../widgets/kodara_logo.dart';
 
 /// Phone + password authentication. New tenants must confirm the SMS OTP
 /// before invitation rows become visible under database RLS.
@@ -41,6 +43,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    HapticFeedback.lightImpact();
     setState(() {
       _busy = true;
       _error = null;
@@ -99,13 +102,20 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    const Center(
+                      child: KodaraLogo(size: 56, color: KodaraColors.ink),
+                    ),
+                    const SizedBox(height: KodaraSpacing.space3),
                     Text(
                       'Kodara',
                       textAlign: TextAlign.center,
                       style: Theme.of(context)
                           .textTheme
                           .headlineMedium
-                          ?.copyWith(fontWeight: FontWeight.w800),
+                          ?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.4,
+                          ),
                     ),
                     const SizedBox(height: KodaraSpacing.space2),
                     Text(

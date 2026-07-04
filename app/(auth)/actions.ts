@@ -37,6 +37,7 @@ export async function signup(formData: FormData) {
   const password = formData.get('password') as string
   const confirmPassword = formData.get('confirm_password') as string
   const fullName = (formData.get('full_name') as string)?.trim()
+  const accountType = formData.get('account_type') === 'tenant' ? 'tenant' : 'landlord'
 
   if (password !== confirmPassword) {
     redirect('/signup?error=' + encodeURIComponent('Passwords do not match'))
@@ -56,14 +57,17 @@ export async function signup(formData: FormData) {
     redirect('/signup?error=' + encodeURIComponent(signUpError.message))
   }
 
-  const { error: landlordError } = await supabase.rpc('register_as_landlord')
+  // Profiles default to the tenant role; only landlords need the upgrade.
+  if (accountType === 'landlord') {
+    const { error: landlordError } = await supabase.rpc('register_as_landlord')
 
-  if (landlordError) {
-    redirect('/signup?error=' + encodeURIComponent(landlordError.message))
+    if (landlordError) {
+      redirect('/signup?error=' + encodeURIComponent(landlordError.message))
+    }
   }
 
   revalidatePath('/', 'layout')
-  redirect('/dashboard')
+  redirect(accountType === 'tenant' ? '/portal' : '/dashboard')
 }
 
 export async function logout() {

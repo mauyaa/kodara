@@ -63,12 +63,90 @@ export default async function TenantPortalPage({
     .maybeSingle();
 
   if (!tenancy) {
+    // RLS scopes invitations to the caller's verified phone.
+    const { data: invitations } = await supabase
+      .from("tenant_invitations")
+      .select("id, rent_amount, billing_day, start_date, expires_at, status")
+      .eq("status", "pending")
+      .gt("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false });
+
+    const acceptInvitation = async (formData: FormData) => {
+      "use server";
+      const invitationId = String(formData.get("invitationId") ?? "");
+      const sb = await createClient();
+      const { error } = await sb.rpc("accept_tenant_invitation", {
+        target_invitation_id: invitationId,
+      });
+      if (error) {
+        redirect(`/portal?error=${encodeURIComponent(error.message)}`);
+      }
+      revalidatePath("/portal");
+      redirect("/portal");
+    };
+
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl bg-secondary/30 px-4 py-16 text-center ring-1 ring-border/50">
-        <h1 className="text-lg font-medium text-foreground">No active tenancy</h1>
-        <p className="mt-1 max-w-sm text-[14px] text-muted-foreground">
-          Once your landlord assigns you to a unit, your rent details appear here.
-        </p>
+      <div className="flex flex-col gap-6">
+        {actionError && (
+          <div
+            role="alert"
+            className="flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive"
+          >
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+            {actionError}
+          </div>
+        )}
+
+        {(invitations ?? []).length > 0 ? (
+          <>
+            <div className="space-y-1">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                Welcome to Kodara
+              </p>
+              <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+                You&apos;ve been invited
+              </h1>
+              <p className="text-[15px] text-muted-foreground">
+                Your landlord has invited you to a unit. Accept to activate your lease.
+              </p>
+            </div>
+            {(invitations ?? []).map((invitation) => (
+              <Card key={invitation.id} className="premium-card">
+                <CardHeader>
+                  <CardTitle className="text-base font-semibold">Lease invitation</CardTitle>
+                  <CardDescription>
+                    Starts {new Date(invitation.start_date).toLocaleDateString("en-KE", { dateStyle: "medium" })} · invitation expires{" "}
+                    {new Date(invitation.expires_at).toLocaleDateString("en-KE", { dateStyle: "medium" })}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-[15px] text-foreground tabular-nums">
+                    <span className="font-bold">{formatKES(Number(invitation.rent_amount))}</span>
+                    <span className="text-muted-foreground"> / month · billed on day {invitation.billing_day}</span>
+                  </div>
+                  <form action={acceptInvitation}>
+                    <input type="hidden" name="invitationId" value={invitation.id} />
+                    <Button
+                      type="submit"
+                      className="h-11 rounded-xl bg-primary px-6 font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 active:scale-[0.98] transition-all"
+                    >
+                      Accept invitation
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            ))}
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center rounded-2xl bg-secondary/30 px-4 py-16 text-center ring-1 ring-border/50">
+            <h1 className="text-lg font-medium text-foreground">No active tenancy</h1>
+            <p className="mt-1 max-w-sm text-[14px] text-muted-foreground">
+              When your landlord invites you to a unit, the invitation appears
+              here. Invitations are matched to your verified M-Pesa phone
+              number{profile?.phone ? ` (${profile.phone})` : ", so make sure your phone is verified on your account"}.
+            </p>
+          </div>
+        )}
       </div>
     );
   }
