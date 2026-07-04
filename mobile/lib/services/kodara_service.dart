@@ -1,22 +1,23 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/models.dart';
 import 'api_exception.dart';
 
-/// Wraps all direct Supabase table/view access used by the mobile app.
-/// Mirrors the read patterns in the Next.js API routes (lib/supabase.ts +
-/// app/api/**) but goes straight to PostgREST under the user's session, which
-/// is simpler and lower-latency on mobile than round-tripping through the
-/// Next.js BFF for plain reads. Row Level Security on the Supabase project is
-/// what actually scopes results to the signed-in user/org — this class does
-/// not duplicate that logic.
+/// All tenant-side data access. Every read and write goes straight to
+/// Supabase under the signed-in tenant's session; Row Level Security in the
+/// database is what scopes results — this class never implements access
+/// control of its own (kodara.md: access control is enforced server-side,
+/// never inferred client-side).
 class KodaraService {
   KodaraService(this._client);
 
   final SupabaseClient _client;
+
+  String? get currentUserId => _client.auth.currentUser?.id;
 
   Future<T> _guard<T>(Future<T> Function() body) async {
     try {
@@ -25,236 +26,272 @@ class KodaraService {
       throw ApiException(e.message);
     } on PostgrestException catch (e) {
       throw ApiException(e.message.isNotEmpty ? e.message : 'Request failed');
+    } on FunctionException catch (e) {
+      final detail = e.details;
+      final message = detail is Map && detail['error'] is String
+          ? _friendlyFunctionError(detail['error'] as String)
+          : 'Payment service is unavailable. Please try again.';
+      throw ApiException(message);
+    } on StorageException catch (e) {
+      throw ApiException(
+          e.message.isNotEmpty ? e.message : 'Upload failed. Please retry.');
     } on SocketException {
       throw ApiException.network();
     } on TimeoutException {
       throw ApiException.network('The request timed out. Please retry.');
-    } catch (e) {
-      throw ApiException('Something went wrong. Please try again.');
+    } on ApiException {
+      rethrow;
+    } catch (_) {
+      throw const ApiException('Something went wrong. Please try again.');
     }
   }
 
-  String? get currentUserId => _client.auth.currentUser?.id;
+  static String _friendlyFunctionError(String code) => switch (code) {
+        'invalid_phone' =>
+          'Enter a valid Safaricom number (2547XXXXXXXX or 2541XXXXXXXX).',
+        'invalid_amount' => 'Enter a whole amount of at least KSh 1.',
+        'tenancy_not_found' =>
+          'We could not find your active lease. Pull to refresh and retry.',
+        'stk_push_rejected' =>
+          'M-Pesa rejected the request. Wait a moment and try again.',
+        'payment_attempt_unavailable' ||
+        'payment_service_unavailable' =>
+          'Payment service is busy. Please try again shortly.',
+        _ => 'Payment could not be started. Please try again.',
+      };
 
-  // ---- Tenant-side reads ----------------------------------------------
+  // ---- Lease ------------------------------------------------------------
 
-  Future<TenantSummary?> fetchTenantForCurrentUser() => _guard(() async {
+  /// The tenant's current active tenancy with unit and property names, or
+  /// null if they have none (e.g. invitation not yet accepted).
+  Future<Tenancy?> fetchActiveTenancy() => _guard(() async {
         final userId = currentUserId;
         if (userId == null) return null;
         final row = await _client
-            .from('tenant_directory')
-            .select('*')
-            .eq('user_id', userId)
-            .maybeSingle();
-        if (row == null) return null;
-        return TenantSummary.fromJson(row);
-      });
-
-  Future<List<MaintenanceItem>> fetchMaintenanceForTenant(
-    String tenantId,
-  ) =>
-      _guard(() async {
-        final rows = await _client
-            .from('maintenance_requests')
-            .select('*, unit:unit_id(unit_name)')
-            .eq('tenant_id', tenantId)
-            .order('created_at', ascending: false);
-        return (rows as List)
-            .whereType<Map>()
-            .map((r) => MaintenanceItem.fromJson(Map<String, dynamic>.from(r)))
-            .toList();
-      });
-
-  Future<List<PaymentRecord>> fetchPaymentsForTenant(String tenantId) =>
-      _guard(() async {
-        final rows = await _client
-            .from('payments')
-            .select('*')
-            .eq('tenant_id', tenantId)
+            .from('tenancies')
+            .select('*, unit:units(name, property:properties(name, address))')
+            .eq('tenant_id', userId)
+            .eq('status', 'active')
             .order('created_at', ascending: false)
-            .limit(20);
-        return (rows as List)
-            .whereType<Map>()
-            .map((r) => PaymentRecord.fromJson(Map<String, dynamic>.from(r)))
-            .toList();
-      });
-
-  /// Finds the most recent unpaid/partially-paid invoice for a tenant, used
-  /// to drive the M-Pesa STK push (the backend requires an invoiceId).
-  Future<InvoiceRecord?> fetchOutstandingInvoice(String tenantId) =>
-      _guard(() async {
-        final row = await _client
-            .from('invoices')
-            .select('id, total_amount, status, due_date')
-            .eq('tenant_id', tenantId)
-            .inFilter('status', ['sent', 'overdue', 'partially_paid'])
-            .order('due_date', ascending: true)
             .limit(1)
             .maybeSingle();
         if (row == null) return null;
-        return InvoiceRecord.fromJson(row);
+        return Tenancy.fromJson(row);
       });
 
-  Future<List<MessageItem>> fetchMessagesForUser(String userId) =>
-      _guard(() async {
+  Future<TenancyBalance?> fetchBalance(String tenancyId) => _guard(() async {
+        final row = await _client
+            .from('tenancy_balances')
+            .select()
+            .eq('tenancy_id', tenancyId)
+            .maybeSingle();
+        if (row == null) return null;
+        return TenancyBalance.fromJson(row);
+      });
+
+  // ---- Invitations --------------------------------------------------------
+
+  /// Pending invitations addressed to this tenant's verified phone number.
+  /// RLS restricts visibility to invitations matching the caller's phone.
+  Future<List<TenantInvitation>> fetchPendingInvitations() => _guard(() async {
         final rows = await _client
-            .from('messages')
-            .select('*')
-            .or('sender_id.eq.$userId,receiver_id.eq.$userId')
+            .from('tenant_invitations')
+            .select()
+            .eq('status', 'pending')
+            .order('created_at', ascending: false);
+        return rows.map(TenantInvitation.fromJson).toList();
+      });
+
+  /// Atomically accepts an invitation, creating the active tenancy.
+  Future<Tenancy> acceptInvitation(String invitationId) => _guard(() async {
+        final row = await _client.rpc(
+          'accept_tenant_invitation',
+          params: {'target_invitation_id': invitationId},
+        );
+        return Tenancy.fromJson(Map<String, dynamic>.from(row as Map));
+      });
+
+  // ---- Payments -----------------------------------------------------------
+
+  Future<List<Payment>> fetchPayments(String tenancyId) => _guard(() async {
+        final rows = await _client
+            .from('payments')
+            .select()
+            .eq('tenancy_id', tenancyId)
             .order('created_at', ascending: false)
             .limit(50);
-        return (rows as List)
-            .whereType<Map>()
-            .map((r) => MessageItem.fromJson(Map<String, dynamic>.from(r)))
-            .toList();
+        return rows.map(Payment.fromJson).toList();
       });
 
-  Future<List<NotificationItem>> fetchNotifications(String userId) =>
+  /// Starts an M-Pesa STK push via the Edge Function. [idempotencyKey] must
+  /// be generated once per user intent and reused on retries of the same
+  /// intent so a flaky network can never double-charge (kodara.md DoD #8).
+  Future<PaymentAttempt> initiateStkPush({
+    required String tenancyId,
+    required String phone,
+    required int amount,
+    required String idempotencyKey,
+  }) =>
+      _guard(() async {
+        final response = await _client.functions.invoke(
+          'mpesa-stk-push',
+          body: {
+            'tenancyId': tenancyId,
+            'phone': phone,
+            'amount': amount,
+            'idempotencyKey': idempotencyKey,
+          },
+        );
+        final data = Map<String, dynamic>.from(response.data as Map);
+        return PaymentAttempt(
+          id: data['attemptId'] as String,
+          status: (data['status'] as String?) ?? 'pending',
+          requestedAmount: amount.toDouble(),
+          resultCode: (data['resultCode'] as num?)?.toInt(),
+          resultDescription: data['resultDescription'] as String?,
+        );
+      });
+
+  /// Live updates for one payment attempt so the pay sheet can move from
+  /// "confirm on your phone" to success/failure the moment the webhook lands.
+  Stream<PaymentAttempt?> watchAttempt(String attemptId) => _client
+      .from('payment_attempts')
+      .stream(primaryKey: ['id'])
+      .eq('id', attemptId)
+      .map((rows) => rows.isEmpty
+          ? null
+          : PaymentAttempt.fromJson(Map<String, dynamic>.from(rows.first)));
+
+  /// Live updates to the tenancy's confirmed payments (drives the balance
+  /// refresh without polling).
+  Stream<List<Payment>> watchPayments(String tenancyId) => _client
+      .from('payments')
+      .stream(primaryKey: ['id'])
+      .eq('tenancy_id', tenancyId)
+      .map((rows) => rows
+          .map((r) => Payment.fromJson(Map<String, dynamic>.from(r)))
+          .toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+
+  // ---- Maintenance ---------------------------------------------------------
+
+  Future<List<MaintenanceRequest>> fetchMaintenance(String tenancyId) =>
       _guard(() async {
         final rows = await _client
-            .from('notifications')
-            .select('*')
-            .eq('recipient_id', userId)
-            .order('created_at', ascending: false)
-            .limit(50);
-        return (rows as List)
-            .whereType<Map>()
-            .map(
-                (r) => NotificationItem.fromJson(Map<String, dynamic>.from(r)))
-            .toList();
+            .from('maintenance_requests')
+            .select()
+            .eq('tenancy_id', tenancyId)
+            .order('created_at', ascending: false);
+        return rows.map(MaintenanceRequest.fromJson).toList();
       });
 
-  Future<void> sendMessage({
-    required String receiverId,
-    required String receiverName,
-    String? subject,
-    required String content,
+  /// Live maintenance status updates (kodara.md DoD #6: tenant sees each
+  /// status change in real time).
+  Stream<List<MaintenanceRequest>> watchMaintenance(String tenancyId) => _client
+      .from('maintenance_requests')
+      .stream(primaryKey: ['id'])
+      .eq('tenancy_id', tenancyId)
+      .map((rows) => rows
+          .map((r) => MaintenanceRequest.fromJson(Map<String, dynamic>.from(r)))
+          .toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+
+  /// Uploads photos first, then creates the request referencing their paths.
+  /// If the insert fails the uploaded objects are orphaned in the tenant's
+  /// own folder only; they are re-usable on retry and harmless otherwise.
+  Future<MaintenanceRequest> createMaintenanceRequest({
+    required String tenancyId,
+    required String title,
+    required String description,
+    required String priority,
+    List<PhotoUpload> photos = const [],
   }) =>
       _guard(() async {
         final userId = currentUserId;
         if (userId == null) {
-          throw const ApiException('You need to be signed in to send messages');
+          throw const ApiException('You need to be signed in.');
         }
-        await _client.from('messages').insert({
-          'sender_id': userId,
-          'receiver_id': receiverId,
-          'subject': subject,
-          'content': content,
-          'attachments': <String>[],
-          'read': false,
-        });
-      });
 
-  Future<MaintenanceItem> createMaintenanceRequest({
-    required String unitId,
-    required String tenantId,
-    required String category,
-    required String title,
-    required String description,
-    String priority = 'medium',
-  }) =>
-      _guard(() async {
+        final photoPaths = <String>[];
+        for (final photo in photos) {
+          final path =
+              '$tenancyId/new/${DateTime.now().millisecondsSinceEpoch}-${photo.fileName}';
+          await _client.storage.from('maintenance-photos').uploadBinary(
+                path,
+                photo.bytes,
+                fileOptions: FileOptions(contentType: photo.contentType),
+              );
+          photoPaths.add(path);
+        }
+
         final row = await _client
             .from('maintenance_requests')
             .insert({
-              'unit_id': unitId,
-              'tenant_id': tenantId,
-              'category': category,
+              'tenancy_id': tenancyId,
+              'created_by': userId,
               'title': title,
               'description': description,
               'priority': priority,
-              'status': 'submitted',
+              'photo_paths': photoPaths,
             })
             .select()
             .single();
-        return MaintenanceItem.fromJson(row);
+        return MaintenanceRequest.fromJson(row);
       });
 
-  // ---- Landlord-side reads ---------------------------------------------
+  /// Short-lived signed URL for a maintenance photo in the private bucket.
+  Future<String> signedPhotoUrl(String path) => _guard(() =>
+      _client.storage.from('maintenance-photos').createSignedUrl(path, 3600));
 
-  Future<List<PropertySummary>> fetchProperties({String? organizationId}) =>
+  // ---- Auth -----------------------------------------------------------------
+
+  Future<void> signIn({required String phone, required String password}) =>
       _guard(() async {
-        var query = _client.from('properties').select('*, units(*)');
-        if (organizationId != null) {
-          query = query.eq('organization_id', organizationId);
-        }
-        final rows = await query.order('created_at', ascending: false);
-        return (rows as List)
-            .whereType<Map>()
-            .map((r) => PropertySummary.fromJson(Map<String, dynamic>.from(r)))
-            .toList();
+        await _client.auth.signInWithPassword(
+          phone: '+$phone',
+          password: password,
+        );
       });
 
-  Future<List<TenantSummary>> fetchTenantDirectory({
-    String? organizationId,
+  /// Uses phone as the primary Auth identity. The database only exposes an
+  /// invitation after Supabase has confirmed this number by SMS OTP.
+  Future<void> signUp({
+    required String password,
+    required String fullName,
+    required String phone,
   }) =>
       _guard(() async {
-        var query = _client.from('tenant_directory').select('*');
-        if (organizationId != null) {
-          query = query.eq('organization_id', organizationId);
-        }
-        final rows = await query.order('move_in_date', ascending: false);
-        return (rows as List)
-            .whereType<Map>()
-            .map((r) => TenantSummary.fromJson(Map<String, dynamic>.from(r)))
-            .toList();
+        await _client.auth.signUp(
+          phone: '+$phone',
+          password: password,
+          data: {'full_name': fullName},
+        );
       });
 
-  Future<List<MaintenanceItem>> fetchAllMaintenance({
-    String? organizationId,
-    String? status,
+  Future<void> verifyPhone({
+    required String phone,
+    required String token,
   }) =>
       _guard(() async {
-        var query = _client.from('maintenance_requests').select(
-            '*, tenant:tenant_id(profile:user_id(full_name, phone)), unit:unit_id(unit_name)');
-        if (organizationId != null) {
-          query = query.eq('organization_id', organizationId);
-        }
-        if (status != null) query = query.eq('status', status);
-        final rows = await query.order('created_at', ascending: false);
-        return (rows as List)
-            .whereType<Map>()
-            .map((r) => MaintenanceItem.fromJson(Map<String, dynamic>.from(r)))
-            .toList();
+        await _client.auth.verifyOTP(
+          type: OtpType.sms,
+          phone: '+$phone',
+          token: token,
+        );
       });
 
-  Future<List<PaymentRecord>> fetchRecentPayments({
-    int limit = 10,
-  }) =>
-      _guard(() async {
-        final rows = await _client
-            .from('payments')
-            .select('*, tenant:tenant_id(profile:user_id(full_name, phone))')
-            .order('created_at', ascending: false)
-            .limit(limit);
-        return (rows as List)
-            .whereType<Map>()
-            .map((r) => PaymentRecord.fromJson(Map<String, dynamic>.from(r)))
-            .toList();
-      });
+  Future<void> signOut() => _guard(() => _client.auth.signOut());
+}
 
-  Future<void> updateMaintenanceStatus(String id, String status) =>
-      _guard(() async {
-        await _client
-            .from('maintenance_requests')
-            .update({
-              'status': status,
-              'updated_at': DateTime.now().toUtc().toIso8601String(),
-            })
-            .eq('id', id);
-      });
+/// A photo picked by the tenant, ready for upload.
+class PhotoUpload {
+  const PhotoUpload({
+    required this.fileName,
+    required this.bytes,
+    required this.contentType,
+  });
 
-  /// Streams live updates to a single payment row so the tenant app can
-  /// reflect the M-Pesa callback (initiated -> completed/failed) without
-  /// polling. Falls back to manual refresh if realtime is unavailable.
-  Stream<PaymentRecord?> watchPayment(String paymentId) {
-    return _client
-        .from('payments')
-        .stream(primaryKey: ['id'])
-        .eq('id', paymentId)
-        .map((rows) {
-          if (rows.isEmpty) return null;
-          return PaymentRecord.fromJson(Map<String, dynamic>.from(rows.first));
-        });
-  }
+  final String fileName;
+  final Uint8List bytes;
+  final String contentType;
 }

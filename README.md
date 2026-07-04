@@ -1,38 +1,81 @@
 # Kodara
 
-Kodara is a Kenyan property-management operating system for owners, property managers, and tenants. The repository contains a Next.js 16 web app, Supabase/PostgreSQL backend specification, Safaricom Daraja M-Pesa routes, and a Flutter mobile client.
+Kodara automates M-Pesa rent collection for Kenyan landlords and gives tenants a focused self-service experience. [`kodara.md`](./kodara.md) is the product source of truth.
 
-## Product surfaces
+## Backend architecture
 
-- Owner and manager workspace: portfolio overview, properties and units, tenant directory, rent collection, maintenance, messaging, documents, and reports.
-- Tenant self-service: current balance, M-Pesa payment flow, maintenance requests, status tracking, messages, and lease/payment documents.
-- Backend: authenticated route handlers, organization-scoped row-level security, private document storage, real-time read models, notifications, and idempotent M-Pesa callbacks.
-- Alpha preview: when no authenticated Supabase workspace is available, the web app runs against persistent browser-local sample data. The interface labels this state explicitly.
+Supabase is the backend. The web and Flutter clients read and write through Supabase Auth, PostgREST, Storage, and Realtime under PostgreSQL Row Level Security. Only M-Pesa work crosses an Edge Function boundary:
 
-## Local development
+- `mpesa-stk-push` authenticates the caller, verifies access to the tenancy, reserves an idempotent payment attempt, and calls Safaricom Daraja.
+- `mpesa-callback` authenticates Safaricom through a high-entropy callback URL token and passes the payload into one atomic PostgreSQL function.
+- PostgreSQL records a successful transaction once, auto-matches the exact tenancy when amount and attempt agree, and places amount mismatches in the landlord's reconciliation queue.
+- `resolve_unmatched_payment` locks and resolves a payment while recording who resolved it and where it was attached.
+
+The canonical hierarchy is:
+
+```text
+Landlord → Property → Unit → Tenancy → Payment
+                                  └→ MaintenanceRequest → StatusHistory
+```
+
+Payments are allowed to have a null `tenancy_id` only while their reconciliation status is `unmatched`. They retain an immutable receiving `landlord_id` so the unmatched queue remains isolated.
+
+## Local setup
+
+Prerequisites: Node.js 22+, Docker, Deno 2, Flutter stable (for the tenant
+client), and the current Supabase CLI.
 
 ```bash
 npm install
-npm run dev
+supabase start
+supabase db reset
+npm run check
+npm run test:db
+npm run check:edge
+npm run test:realtime
+cd mobile && flutter pub get && flutter analyze && flutter test
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Use the role switcher to inspect owner, manager, and tenant experiences.
-
-Quality checks:
+Copy [`.env.example`](./.env.example) to `.env.local` for the Next.js client. Edge Function secrets are not Next.js environment variables; set them in Supabase:
 
 ```bash
-npm run lint
-npm run typecheck
-npm test
-npm run build
+supabase secrets set --env-file supabase/functions/.env
+supabase functions serve mpesa-stk-push --env-file supabase/functions/.env
+supabase functions serve mpesa-callback --env-file supabase/functions/.env --no-verify-jwt
 ```
 
-## Production setup
+Deploy in this order:
 
-1. Create a Supabase project and apply [`docs/schema.sql`](docs/schema.sql).
-2. Configure the variables in [`.env.example`](.env.example) through the deployment platform. Never paste service-role or M-Pesa secrets into the browser.
-3. Configure Supabase Phone Auth and an SMS provider, then validate owner, manager, and tenant policies with separate test accounts.
-4. Complete Safaricom sandbox certification before setting `MPESA_ENVIRONMENT=production`.
-5. Follow [`docs/FINAL_SETUP.md`](docs/FINAL_SETUP.md) for the release gate.
+```bash
+supabase db push
+supabase functions deploy mpesa-stk-push
+supabase functions deploy mpesa-callback --no-verify-jwt
+```
 
-External provider approval, production credentials, domain/DNS configuration, app-store signing, and live payment certification are deployment dependencies and are not simulated as “complete.”
+Then configure `MPESA_CALLBACK_URL` as the deployed callback function URL and complete Safaricom sandbox certification before using production credentials.
+
+## Security and integrity guarantees
+
+- Every exposed table has explicit grants and RLS. No anonymous table access exists.
+- Landlords can only reach their own property hierarchy; tenants can only reach their own tenancies.
+- Service-role credentials exist only in Edge Functions and never in a public client.
+- Raw M-Pesa callbacks live in the unexposed `private` schema.
+- Provider receipt IDs and checkout IDs are unique; client retries use a tenancy-scoped idempotency key.
+- A database lock permits only one unresolved STK attempt per tenant/tenancy and
+  enforces a rolling request limit even if an Edge Function instance is bypassed.
+- Daraja transport ambiguity becomes an explicit `uncertain` attempt for
+  reconciliation; accepted requests cannot remain stuck in `requesting`.
+- Tenant invitation matching uses only the phone verified by Supabase Auth;
+  user metadata and editable profile fields cannot impersonate another phone.
+- Maintenance history is trigger-written and cannot be edited by clients.
+- Maintenance photos use a private bucket with tenancy-derived object paths.
+
+## Verification
+
+`npm run check` covers lint, generated route types, TypeScript, 26 unit tests,
+and the production build. The local backend gate adds 22 pgTAP assertions,
+schema lint, advisors, Deno checks, and authenticated payment/maintenance
+Realtime delivery. Flutter has 5 model/formatter tests and a clean analyzer.
+The Daraja sandbox harness has observed a real STK request plus success,
+duplicate, mismatch, and cancellation callbacks. Production still requires an
+SMS provider and a real-phone payment certification.

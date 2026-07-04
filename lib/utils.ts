@@ -1,8 +1,8 @@
-import { type ClassValue, clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
+  return twMerge(clsx(inputs))
 }
 
 export function formatKES(amount: number): string {
@@ -11,12 +11,4 @@ export function formatKES(amount: number): string {
     currency: "KES",
     minimumFractionDigits: 0,
   }).format(amount);
-}
-
-export function formatDate(date: Date | string): string {
-  return new Intl.DateTimeFormat("en-KE", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(date));
 }

@@ -7,21 +7,58 @@ on:
     branches: [main]
 
 jobs:
-  lint-test:
+  web-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
-      
+
       - run: npm ci
-      - run: npm run lint
-      - run: npm run build
+      - run: npm run check
+
+  backend-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - run: npm ci
+      - run: npx supabase start
+      - run: npx supabase db reset --local --yes
+      - run: npm run test:db
+      - run: npx supabase db lint --local --level warning --fail-on warning
+      - run: npx supabase db advisors --local --type all --level warn --fail-on warn
+      - run: npm run check:edge
+      - run: npm run test:realtime
+      - if: always()
+        run: npx supabase stop --no-backup
+
+  mobile-check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
 
   deploy-staging:
-    needs: lint-test
+    needs: [web-check, backend-check, mobile-check]
     if: github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
     environment: staging
@@ -37,7 +74,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
   deploy-prod:
-    needs: lint-test
+    needs: [web-check, backend-check, mobile-check]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
