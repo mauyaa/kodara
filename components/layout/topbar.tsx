@@ -44,14 +44,15 @@ export function Topbar({
         >
           <LogoMark className="h-6 w-6" />
         </Link>
-        <div className="relative w-full max-w-sm hidden sm:flex">
+        <form action="/tenants" className="relative w-full max-w-sm hidden sm:flex">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <input
             type="search"
-            placeholder="Search properties, tenants..."
+            name="q"
+            placeholder="Search tenants, units, phones..."
             className="flex h-9 w-full rounded-full border-0 bg-secondary/80 px-3 py-1 text-[14px] shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] transition-all duration-200 ease-[var(--ease-out)] placeholder:text-muted-foreground focus-visible:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50 pl-9"
           />
-        </div>
+        </form>
       </div>
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" className="text-muted-foreground hover:bg-secondary/50">

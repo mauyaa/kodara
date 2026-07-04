@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -71,6 +72,7 @@ class _MaintenanceRequestSheetState
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    HapticFeedback.lightImpact();
     setState(() {
       _busy = true;
       _error = null;

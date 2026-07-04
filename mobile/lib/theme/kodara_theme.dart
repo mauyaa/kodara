@@ -30,13 +30,15 @@ class KodaraColors {
   // card, bottom nav bar background if dark. Not used for body text.
   static const Color ink = Color(0xFF0B2922);
 
-  static const Color background = Color(0xFFF8FAFC);
+  // Warm paper foundation — matches the web DESIGN.md tokens (the page is
+  // paper, not plastic).
+  static const Color background = Color(0xFFFAF9F7);
   static const Color surface = Color(0xFFFFFFFF);
 
-  static const Color textPrimary = Color(0xFF1E2937);
-  static const Color textSecondary = Color(0xFF64748B);
+  static const Color textPrimary = Color(0xFF201D1A);
+  static const Color textSecondary = Color(0xFF7C766D);
 
-  static const Color border = Color(0xFFE2E8F0);
+  static const Color border = Color(0xFFE8E5DF);
 
   // Semantic states — used ONLY for their real meaning, never decoratively.
   static const Color success = Color(0xFF10B981);
@@ -238,6 +240,7 @@ class KodaraTypography {
     color: Colors.white,
     height: 1.1,
     letterSpacing: -0.5,
+    fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
   );
 
   /// Hero number variant for use on light surfaces (accent- or ink-free
@@ -248,6 +251,7 @@ class KodaraTypography {
     color: KodaraColors.textPrimary,
     height: 1.1,
     letterSpacing: -0.5,
+    fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
   );
 }
 

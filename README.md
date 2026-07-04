@@ -42,7 +42,13 @@ Copy [`.env.example`](./.env.example) to `.env.local` for the Next.js client. Ed
 supabase secrets set --env-file supabase/functions/.env
 supabase functions serve mpesa-stk-push --env-file supabase/functions/.env
 supabase functions serve mpesa-callback --env-file supabase/functions/.env --no-verify-jwt
+supabase functions serve rent-reminders --env-file supabase/functions/.env --no-verify-jwt
 ```
+
+Dev note: `.env.development.local` must define `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+with the **local** publishable key from `supabase status`. If it only overrides the
+URL and anon key, the production publishable key from `.env.local` leaks through and
+Realtime websockets fail with `CHANNEL_ERROR` while REST keeps working.
 
 Deploy in this order:
 
@@ -50,9 +56,35 @@ Deploy in this order:
 supabase db push
 supabase functions deploy mpesa-stk-push
 supabase functions deploy mpesa-callback --no-verify-jwt
+supabase functions deploy rent-reminders --no-verify-jwt
 ```
 
 Then configure `MPESA_CALLBACK_URL` as the deployed callback function URL and complete Safaricom sandbox certification before using production credentials.
+
+### Rent reminders
+
+Reminder rows (`rent_due_soon`, `rent_due_today`, weekly `rent_overdue`) are
+generated **in the database** by `private.generate_rent_reminders()`, which the
+core migration schedules with pg_cron daily at 04:00 UTC (07:00 EAT). In-app
+reminders therefore need no extra setup after `supabase db push`.
+
+The `rent-reminders` Edge Function additionally dispatches pending reminders by
+SMS. Required secrets:
+
+| Secret | Purpose |
+|---|---|
+| `REMINDERS_CRON_TOKEN` | Shared token; callers must pass `?token=<value>` |
+| `AT_USERNAME` / `AT_API_KEY` | Africa's Talking credentials (`sandbox` username targets the sandbox API) |
+| `AT_SENDER_ID` | Optional alphanumeric sender ID |
+
+Without Africa's Talking credentials the function marks reminders `skipped`
+and tenants still see them in the portal. Schedule the SMS leg with a daily
+HTTP call to the deployed function (Supabase Dashboard → Integrations → Cron,
+or any scheduler):
+
+```text
+POST https://<project-ref>.supabase.co/functions/v1/rent-reminders?token=<REMINDERS_CRON_TOKEN>
+```
 
 ## Security and integrity guarantees
 
