@@ -29,6 +29,8 @@ class KodaraApp extends ConsumerWidget {
       title: 'Kodara',
       debugShowCheckedModeBanner: false,
       theme: buildKodaraTheme(),
+      darkTheme: buildKodaraDarkTheme(),
+      themeMode: ThemeMode.system,
       home: isSupabaseConfigured
           ? const _AuthGate()
           : const Scaffold(body: NotConfiguredNotice()),

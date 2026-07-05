@@ -26,26 +26,36 @@ class StatusBadge extends StatelessWidget {
     'vacant',
     'submitted',
     'overdue',
+    'unmatched',
+    'pending',
+    'in_progress',
+  };
+  // Red means failure, never "needs attention" (DESIGN.md status semantics).
+  static const _danger = {
     'failed',
     'cancelled',
     'rejected',
-    'unmatched',
     'expired',
+    'reversed',
   };
 
   @override
   Widget build(BuildContext context) {
+    final kodara = context.kodara;
     final Color background;
     final Color foreground;
     if (_success.contains(value)) {
-      background = KodaraColors.successTint;
-      foreground = KodaraColors.success;
+      background = kodara.successTint;
+      foreground = kodara.success;
+    } else if (_danger.contains(value)) {
+      background = kodara.errorTint;
+      foreground = kodara.error;
     } else if (_warning.contains(value)) {
-      background = KodaraColors.warningTint;
-      foreground = KodaraColors.warning;
+      background = kodara.warningTint;
+      foreground = kodara.warning;
     } else {
-      background = KodaraColors.accentTintStrong;
-      foreground = KodaraColors.accentDark;
+      background = kodara.accentTintStrong;
+      foreground = kodara.accentDark;
     }
     return Container(
       padding: const EdgeInsets.symmetric(

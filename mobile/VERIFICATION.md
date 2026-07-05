@@ -1,9 +1,10 @@
 # Kodara tenant app verification
 
-Verified on 2026-07-03 with Flutter 3.44.4 and Dart 3.12.2:
+Verified on 2026-07-04 with Flutter 3.44.4 and Dart 3.12.2:
 
 - `flutter analyze`: no issues.
-- `flutter test`: 5 tests passed.
+- `flutter test`: 6 tests passed, including the unconfigured-build safety UI.
+- `flutter build web --release`: successful.
 - Supabase phone/password signup and SMS OTP APIs compile against the current
   SDK.
 
@@ -29,6 +30,9 @@ For Android against local Supabase, replace the URL with
   explicit `uncertain` terminal state.
 - Maintenance creation, private photo upload, and live status changes.
 - Confirmed payment history and phone-matched invitation acceptance.
+- Native Android and iOS project shells, branded launcher icons, dark mode,
+  bottom navigation, haptics, photo-library purpose copy, and Android network
+  configuration.
 
 RLS is the access-control boundary; the app contains no client-authoritative
 role checks. Landlord mobile features remain outside v1 scope.

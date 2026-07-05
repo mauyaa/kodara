@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Non-Next.js code: Flutter app (Dart) and Deno edge functions.
+    "mobile/**",
+    "supabase/functions/**",
+    "generated/**",
   ]),
 ]);
 

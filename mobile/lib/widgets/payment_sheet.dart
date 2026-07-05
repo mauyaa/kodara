@@ -147,18 +147,17 @@ class _PaymentSheetState extends ConsumerState<PaymentSheet> {
           style: Theme.of(context)
               .textTheme
               .bodyMedium
-              ?.copyWith(color: KodaraColors.textSecondary),
+              ?.copyWith(color: context.kodara.textSecondary),
         ),
         const SizedBox(height: KodaraSpacing.space5),
         if (_error != null) ...[
           Container(
             padding: const EdgeInsets.all(KodaraSpacing.space3),
             decoration: BoxDecoration(
-              color: KodaraColors.errorTint,
+              color: context.kodara.errorTint,
               borderRadius: BorderRadius.circular(KodaraRadius.md),
             ),
-            child: Text(_error!,
-                style: const TextStyle(color: KodaraColors.error)),
+            child: Text(_error!, style: TextStyle(color: context.kodara.error)),
           ),
           const SizedBox(height: KodaraSpacing.space4),
         ],
@@ -196,7 +195,7 @@ class _PaymentSheetState extends ConsumerState<PaymentSheet> {
           style: Theme.of(context)
               .textTheme
               .bodySmall
-              ?.copyWith(color: KodaraColors.textSecondary),
+              ?.copyWith(color: context.kodara.textSecondary),
         ),
       ],
     );
@@ -226,7 +225,7 @@ class _PaymentSheetState extends ConsumerState<PaymentSheet> {
             style: Theme.of(context)
                 .textTheme
                 .bodyMedium
-                ?.copyWith(color: KodaraColors.textSecondary),
+                ?.copyWith(color: context.kodara.textSecondary),
           ),
         ],
       );
@@ -234,8 +233,8 @@ class _PaymentSheetState extends ConsumerState<PaymentSheet> {
       body = Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.check_circle_rounded,
-              color: KodaraColors.success, size: 56),
+          Icon(Icons.check_circle_rounded,
+              color: context.kodara.success, size: 56),
           const SizedBox(height: KodaraSpacing.space4),
           Text('Payment received',
               style: Theme.of(context)
@@ -258,7 +257,7 @@ class _PaymentSheetState extends ConsumerState<PaymentSheet> {
       body = Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.error_rounded, color: KodaraColors.error, size: 56),
+          Icon(Icons.error_rounded, color: context.kodara.error, size: 56),
           const SizedBox(height: KodaraSpacing.space4),
           Text('Payment not completed',
               style: Theme.of(context)
@@ -273,7 +272,7 @@ class _PaymentSheetState extends ConsumerState<PaymentSheet> {
             style: Theme.of(context)
                 .textTheme
                 .bodyMedium
-                ?.copyWith(color: KodaraColors.textSecondary),
+                ?.copyWith(color: context.kodara.textSecondary),
           ),
           const SizedBox(height: KodaraSpacing.space5),
           FilledButton(

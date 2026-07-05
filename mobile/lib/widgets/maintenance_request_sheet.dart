@@ -121,11 +121,11 @@ class _MaintenanceRequestSheetState
               Container(
                 padding: const EdgeInsets.all(KodaraSpacing.space3),
                 decoration: BoxDecoration(
-                  color: KodaraColors.errorTint,
+                  color: context.kodara.errorTint,
                   borderRadius: BorderRadius.circular(KodaraRadius.md),
                 ),
                 child: Text(_error!,
-                    style: const TextStyle(color: KodaraColors.error)),
+                    style: TextStyle(color: context.kodara.error)),
               ),
               const SizedBox(height: KodaraSpacing.space4),
             ],
@@ -177,7 +177,7 @@ class _MaintenanceRequestSheetState
                       style: Theme.of(context)
                           .textTheme
                           .bodySmall
-                          ?.copyWith(color: KodaraColors.textSecondary)),
+                          ?.copyWith(color: context.kodara.textSecondary)),
               ],
             ),
             const SizedBox(height: KodaraSpacing.space5),
