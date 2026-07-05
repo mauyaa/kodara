@@ -434,7 +434,7 @@ ThemeData _buildTheme(KodaraThemeExtension p, Brightness brightness) {
       color: p.surface,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(KodaraRadius.md),
+        borderRadius: BorderRadius.circular(KodaraRadius.lg),
         side: BorderSide(color: p.border),
       ),
     ),
