@@ -8,6 +8,7 @@ import '../services/api_exception.dart';
 import '../theme/kodara_theme.dart';
 import '../widgets/async_state_view.dart';
 import '../widgets/formatters.dart';
+import '../widgets/kodara_frame.dart';
 import '../widgets/kodara_logo.dart';
 import '../widgets/maintenance_request_sheet.dart';
 import '../widgets/payment_sheet.dart';
@@ -40,62 +41,84 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: _selectedIndex == 0
-            ? const KodaraLockup()
-            : Text(_titles[_selectedIndex]),
-      ),
-      body: tenancyAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => AsyncStateView(
-          loading: false,
-          error: error,
-          onRetry: () => ref.invalidate(activeTenancyProvider),
+        titleSpacing: 0,
+        title: KodaraFrame(
+          child: Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: KodaraSpacing.space5),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: _selectedIndex == 0
+                  ? const KodaraLockup()
+                  : Text(_titles[_selectedIndex]),
+            ),
+          ),
         ),
-        data: (value) => value == null
-            ? _InvitationGate(
-                onAccepted: () => ref.invalidate(activeTenancyProvider),
-              )
-            : IndexedStack(
-                index: _selectedIndex,
-                children: [
-                  _OverviewTab(
-                    tenancy: value,
-                    onOpenPayments: () => _selectTab(1),
-                    onOpenRepairs: () => _selectTab(2),
-                  ),
-                  _PaymentsTab(tenancy: value),
-                  _RepairsTab(tenancy: value),
-                  _AccountTab(tenancy: value),
-                ],
-              ),
+      ),
+      body: KodaraFrame(
+        child: tenancyAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => AsyncStateView(
+            loading: false,
+            error: error,
+            onRetry: () => ref.invalidate(activeTenancyProvider),
+          ),
+          data: (value) => value == null
+              ? _InvitationGate(
+                  onAccepted: () => ref.invalidate(activeTenancyProvider),
+                )
+              : IndexedStack(
+                  index: _selectedIndex,
+                  children: [
+                    _OverviewTab(
+                      tenancy: value,
+                      onOpenPayments: () => _selectTab(1),
+                      onOpenRepairs: () => _selectTab(2),
+                    ),
+                    _PaymentsTab(tenancy: value),
+                    _RepairsTab(tenancy: value),
+                    _AccountTab(tenancy: value),
+                  ],
+                ),
+        ),
       ),
       bottomNavigationBar: tenancy == null
           ? null
-          : NavigationBar(
-              selectedIndex: _selectedIndex,
-              onDestinationSelected: _selectTab,
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.home_outlined),
-                  selectedIcon: Icon(Icons.home_rounded),
-                  label: 'Home',
+          : ColoredBox(
+              color: Theme.of(context).colorScheme.surface,
+              child: Center(
+                heightFactor: 1,
+                child: ConstrainedBox(
+                  constraints:
+                      const BoxConstraints(maxWidth: KodaraSpacing.frameTenant),
+                  child: NavigationBar(
+                    selectedIndex: _selectedIndex,
+                    onDestinationSelected: _selectTab,
+                    destinations: const [
+                      NavigationDestination(
+                        icon: Icon(Icons.home_outlined),
+                        selectedIcon: Icon(Icons.home_rounded),
+                        label: 'Home',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.receipt_long_outlined),
+                        selectedIcon: Icon(Icons.receipt_long_rounded),
+                        label: 'Payments',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.build_outlined),
+                        selectedIcon: Icon(Icons.build_rounded),
+                        label: 'Repairs',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.person_outline_rounded),
+                        selectedIcon: Icon(Icons.person_rounded),
+                        label: 'Account',
+                      ),
+                    ],
+                  ),
                 ),
-                NavigationDestination(
-                  icon: Icon(Icons.receipt_long_outlined),
-                  selectedIcon: Icon(Icons.receipt_long_rounded),
-                  label: 'Payments',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.build_outlined),
-                  selectedIcon: Icon(Icons.build_rounded),
-                  label: 'Repairs',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.person_outline_rounded),
-                  selectedIcon: Icon(Icons.person_rounded),
-                  label: 'Account',
-                ),
-              ],
+              ),
             ),
     );
   }
@@ -288,7 +311,6 @@ class _OverviewTab extends ConsumerWidget {
                 child: _MetricCard(
                   label: 'MONTHLY RENT',
                   value: formatKes(tenancy.rentAmount),
-                  icon: Icons.calendar_month_rounded,
                 ),
               ),
               const SizedBox(width: KodaraSpacing.space3),
@@ -296,7 +318,6 @@ class _OverviewTab extends ConsumerWidget {
                 child: _MetricCard(
                   label: 'NEXT DUE',
                   value: formatDate(tenancy.nextDueDate),
-                  icon: Icons.event_available_rounded,
                 ),
               ),
             ],
@@ -551,50 +572,29 @@ class _RepairsTab extends ConsumerWidget {
           Card(
             child: Padding(
               padding: const EdgeInsets.all(KodaraSpacing.space5),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: context.kodara.accentTint,
-                      borderRadius: BorderRadius.circular(KodaraRadius.md),
-                    ),
-                    child: Icon(
-                      Icons.home_repair_service_rounded,
-                      color: context.kodara.accent,
-                    ),
+                  Text(
+                    'Something needs attention?',
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
-                  const SizedBox(width: KodaraSpacing.space4),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Something needs attention?',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: KodaraSpacing.space1),
-                        Text(
-                          'Send details and photos to your landlord.',
-                          style: TextStyle(
-                            color: context.kodara.textSecondary,
-                          ),
-                        ),
-                      ],
+                  const SizedBox(height: KodaraSpacing.space2),
+                  Text(
+                    'Send details and photos straight to your landlord and track the fix here.',
+                    style: TextStyle(color: context.kodara.textSecondary),
+                  ),
+                  const SizedBox(height: KodaraSpacing.space4),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: reportIssue,
+                      icon: const Icon(Icons.add_rounded),
+                      label: const Text('Report a repair'),
                     ),
                   ),
                 ],
               ),
-            ),
-          ),
-          const SizedBox(height: KodaraSpacing.space4),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: reportIssue,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Report a repair'),
             ),
           ),
           const SizedBox(height: KodaraSpacing.space6),
@@ -767,15 +767,10 @@ class _AccountTab extends ConsumerWidget {
 }
 
 class _MetricCard extends StatelessWidget {
-  const _MetricCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
+  const _MetricCard({required this.label, required this.value});
 
   final String label;
   final String value;
-  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -785,8 +780,6 @@ class _MetricCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 20, color: context.kodara.accent),
-            const SizedBox(height: KodaraSpacing.space3),
             Text(
               label,
               style: KodaraTypography.eyebrow.copyWith(
@@ -794,12 +787,12 @@ class _MetricCard extends StatelessWidget {
                 letterSpacing: 1,
               ),
             ),
-            const SizedBox(height: KodaraSpacing.space1),
+            const SizedBox(height: KodaraSpacing.space2),
             Text(
               value,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleSmall,
+              style: Theme.of(context).textTheme.titleMedium,
             ),
           ],
         ),
