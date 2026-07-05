@@ -464,8 +464,7 @@ ThemeData _buildTheme(KodaraThemeExtension p, Brightness brightness) {
         foregroundColor: Colors.white,
         disabledBackgroundColor: p.accent.withValues(alpha: 0.4),
         minimumSize: const Size.fromHeight(52),
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(KodaraRadius.sm)),
+        shape: const StadiumBorder(),
         textStyle: buttonTextStyle,
       ).copyWith(
         overlayColor: WidgetStateProperty.resolveWith(
@@ -480,8 +479,7 @@ ThemeData _buildTheme(KodaraThemeExtension p, Brightness brightness) {
         foregroundColor: p.accent,
         side: BorderSide(color: p.border),
         minimumSize: const Size.fromHeight(52),
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(KodaraRadius.sm)),
+        shape: const StadiumBorder(),
         textStyle: buttonTextStyle,
       ).copyWith(
         overlayColor: WidgetStateProperty.resolveWith(

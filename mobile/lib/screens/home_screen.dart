@@ -14,8 +14,12 @@ import '../widgets/maintenance_request_sheet.dart';
 import '../widgets/payment_sheet.dart';
 import '../widgets/status_badge.dart';
 
-/// Phone-first tenant workspace with focused tabs for the tasks tenants repeat:
-/// checking rent, paying, following repairs, and managing their lease details.
+/// Bottom padding that keeps scrolling content clear of the floating dock.
+const double _dockClearance = 120;
+
+/// Phone-first tenant workspace. Editorial composition: one featured ink
+/// surface per screen, de-boxed lists separated by hairlines, uppercase
+/// eyebrow section labels, and a floating pill dock for navigation.
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -40,6 +44,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final tenancy = tenancyAsync.valueOrNull;
 
     return Scaffold(
+      extendBody: true,
       appBar: AppBar(
         titleSpacing: 0,
         title: KodaraFrame(
@@ -84,42 +89,118 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       bottomNavigationBar: tenancy == null
           ? null
-          : ColoredBox(
-              color: Theme.of(context).colorScheme.surface,
-              child: Center(
-                heightFactor: 1,
-                child: ConstrainedBox(
-                  constraints:
-                      const BoxConstraints(maxWidth: KodaraSpacing.frameTenant),
-                  child: NavigationBar(
-                    selectedIndex: _selectedIndex,
-                    onDestinationSelected: _selectTab,
-                    destinations: const [
-                      NavigationDestination(
-                        icon: Icon(Icons.home_outlined),
-                        selectedIcon: Icon(Icons.home_rounded),
-                        label: 'Home',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.receipt_long_outlined),
-                        selectedIcon: Icon(Icons.receipt_long_rounded),
-                        label: 'Payments',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.build_outlined),
-                        selectedIcon: Icon(Icons.build_rounded),
-                        label: 'Repairs',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.person_outline_rounded),
-                        selectedIcon: Icon(Icons.person_rounded),
-                        label: 'Account',
-                      ),
-                    ],
+          : _FloatingDock(
+              selectedIndex: _selectedIndex,
+              onSelect: _selectTab,
+            ),
+    );
+  }
+}
+
+/// Floating pill navigation — the one piece of chrome that makes the app
+/// unmistakably Kodara instead of stock Material.
+class _FloatingDock extends StatelessWidget {
+  const _FloatingDock({required this.selectedIndex, required this.onSelect});
+
+  final int selectedIndex;
+  final ValueChanged<int> onSelect;
+
+  static const _items = [
+    (Icons.home_outlined, Icons.home_rounded, 'Home'),
+    (Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'Payments'),
+    (Icons.build_outlined, Icons.build_rounded, 'Repairs'),
+    (Icons.person_outline_rounded, Icons.person_rounded, 'Account'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final kodara = context.kodara;
+    return SafeArea(
+      minimum: const EdgeInsets.fromLTRB(
+        KodaraSpacing.space5,
+        0,
+        KodaraSpacing.space5,
+        KodaraSpacing.space4,
+      ),
+      child: Center(
+        heightFactor: 1,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Container(
+            height: 64,
+            decoration: BoxDecoration(
+              color: kodara.surface,
+              borderRadius: BorderRadius.circular(KodaraRadius.full),
+              border: Border.all(color: kodara.border),
+              boxShadow: KodaraShadows.modal,
+            ),
+            child: Row(
+              children: [
+                for (var i = 0; i < _items.length; i++)
+                  Expanded(
+                    child: _DockItem(
+                      icon: _items[i].$1,
+                      selectedIcon: _items[i].$2,
+                      label: _items[i].$3,
+                      selected: i == selectedIndex,
+                      onTap: () => onSelect(i),
+                    ),
                   ),
-                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DockItem extends StatelessWidget {
+  const _DockItem({
+    required this.icon,
+    required this.selectedIcon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final kodara = context.kodara;
+    final color = selected ? kodara.accent : kodara.textSecondary;
+    return InkWell(
+      onTap: onTap,
+      customBorder: const StadiumBorder(),
+      child: AnimatedContainer(
+        duration: KodaraMotion.base,
+        curve: KodaraMotion.easeStandard,
+        margin: const EdgeInsets.all(KodaraSpacing.space2),
+        decoration: BoxDecoration(
+          color: selected ? kodara.accentTint : Colors.transparent,
+          borderRadius: BorderRadius.circular(KodaraRadius.full),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(selected ? selectedIcon : icon, size: 22, color: color),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: color,
               ),
             ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -189,7 +270,7 @@ class _InvitationGateState extends ConsumerState<_InvitationGate> {
             children: [
               Text(
                 'You have a new home',
-                style: Theme.of(context).textTheme.headlineMedium,
+                style: Theme.of(context).textTheme.displayMedium,
               ),
               const SizedBox(height: KodaraSpacing.space2),
               Text(
@@ -219,15 +300,17 @@ class _InvitationGateState extends ConsumerState<_InvitationGate> {
                           ),
                         ),
                         const SizedBox(height: KodaraSpacing.space5),
-                        _LeaseRow(
+                        _DetailRow(
                           label: 'Rent due',
                           value: 'Day ${invitation.billingDay} every month',
                         ),
-                        _LeaseRow(
+                        const _HairLine(),
+                        _DetailRow(
                           label: 'Lease starts',
                           value: formatDate(invitation.startDate),
                         ),
-                        _LeaseRow(
+                        const _HairLine(),
+                        _DetailRow(
                           label: 'Invitation expires',
                           value: formatDate(invitation.expiresAt),
                         ),
@@ -264,6 +347,13 @@ class _OverviewTab extends ConsumerWidget {
   final VoidCallback onOpenPayments;
   final VoidCallback onOpenRepairs;
 
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final balanceAsync = ref.watch(balanceProvider(tenancy.id));
@@ -273,6 +363,11 @@ class _OverviewTab extends ConsumerWidget {
     final payments = paymentsAsync.valueOrNull ?? const <Payment>[];
     final requests =
         maintenanceAsync.valueOrNull ?? const <MaintenanceRequest>[];
+    final user = ref.watch(currentUserProvider);
+    final firstName = (user?.userMetadata?['full_name']?.toString() ?? '')
+        .trim()
+        .split(RegExp(r'\s+'))
+        .first;
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -283,77 +378,61 @@ class _OverviewTab extends ConsumerWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(
           KodaraSpacing.space5,
-          KodaraSpacing.space3,
+          KodaraSpacing.space4,
           KodaraSpacing.space5,
-          KodaraSpacing.space6,
+          _dockClearance,
         ),
         children: [
           Text(
-            tenancy.propertyName ?? 'Your home',
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
-          const SizedBox(height: KodaraSpacing.space1),
-          Text(
             [
+              tenancy.propertyName ?? 'Your home',
               if ((tenancy.unitName ?? '').isNotEmpty)
                 'Unit ${tenancy.unitName}',
-              if ((tenancy.propertyAddress ?? '').isNotEmpty)
-                tenancy.propertyAddress!,
-            ].join(' · '),
-            style: TextStyle(color: context.kodara.textSecondary),
+            ].join(' · ').toUpperCase(),
+            style: KodaraTypography.eyebrow.copyWith(
+              color: context.kodara.textSecondary,
+            ),
+          ),
+          const SizedBox(height: KodaraSpacing.space2),
+          Text(
+            firstName.isEmpty ? _greeting() : '${_greeting()}, $firstName',
+            style: Theme.of(context).textTheme.displayMedium,
           ),
           const SizedBox(height: KodaraSpacing.space5),
           _BalanceCard(tenancy: tenancy, balance: balance),
           const SizedBox(height: KodaraSpacing.space5),
-          Row(
-            children: [
-              Expanded(
-                child: _MetricCard(
-                  label: 'MONTHLY RENT',
-                  value: formatKes(tenancy.rentAmount),
-                ),
-              ),
-              const SizedBox(width: KodaraSpacing.space3),
-              Expanded(
-                child: _MetricCard(
-                  label: 'NEXT DUE',
-                  value: formatDate(tenancy.nextDueDate),
-                ),
-              ),
-            ],
+          _StatRow(
+            leftLabel: 'MONTHLY RENT',
+            leftValue: formatKes(tenancy.rentAmount),
+            rightLabel: 'NEXT DUE',
+            rightValue: formatDate(tenancy.nextDueDate),
           ),
           const SizedBox(height: KodaraSpacing.space6),
           _SectionHeader(
-            title: 'Latest payment',
+            title: 'LATEST PAYMENT',
             actionLabel: 'See all',
             onAction: onOpenPayments,
           ),
-          const SizedBox(height: KodaraSpacing.space3),
           if (paymentsAsync.isLoading)
             const LoadingSkeleton()
           else if (payments.isEmpty)
-            const _CompactEmptyState(
-              icon: Icons.receipt_long_outlined,
-              message: 'Confirmed M-Pesa payments will appear here.',
-            )
+            const _QuietNote(
+                message: 'Confirmed M-Pesa payments will appear here.')
           else
-            _PaymentCard(payment: payments.first),
-          const SizedBox(height: KodaraSpacing.space6),
+            _PaymentRow(payment: payments.first),
+          const SizedBox(height: KodaraSpacing.space5),
           _SectionHeader(
-            title: 'Repairs',
+            title: 'REPAIRS',
             actionLabel: 'View all',
             onAction: onOpenRepairs,
           ),
-          const SizedBox(height: KodaraSpacing.space3),
           if (maintenanceAsync.isLoading)
             const LoadingSkeleton()
           else if (requests.isEmpty)
-            const _CompactEmptyState(
-              icon: Icons.home_repair_service_outlined,
-              message: 'No repair requests. Your home is all clear.',
-            )
+            const _QuietNote(
+                message: 'No repair requests. Your home is all clear.')
           else
-            _MaintenanceCard(request: requests.first),
+            _RepairRow(request: requests.first),
         ],
       ),
     );
@@ -372,10 +451,10 @@ class _BalanceCard extends StatelessWidget {
     final isPaid = amount != null && amount <= 0;
 
     return Container(
-      padding: const EdgeInsets.all(KodaraSpacing.space5),
+      padding: const EdgeInsets.all(KodaraSpacing.space6),
       decoration: BoxDecoration(
         color: context.kodara.ink,
-        borderRadius: BorderRadius.circular(KodaraRadius.xl),
+        borderRadius: BorderRadius.circular(28),
         boxShadow: KodaraShadows.accent,
       ),
       child: Column(
@@ -445,6 +524,7 @@ class _PaymentsTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final balance = ref.watch(balanceProvider(tenancy.id)).valueOrNull;
     final paymentsAsync = ref.watch(paymentsStreamProvider(tenancy.id));
+    final due = balance?.balance ?? tenancy.rentAmount;
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -454,21 +534,33 @@ class _PaymentsTab extends ConsumerWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(
           KodaraSpacing.space5,
-          KodaraSpacing.space3,
+          KodaraSpacing.space4,
           KodaraSpacing.space5,
-          KodaraSpacing.space6,
+          _dockClearance,
         ),
         children: [
-          _PaymentActionCard(tenancy: tenancy, balance: balance),
-          const SizedBox(height: KodaraSpacing.space6),
-          Text('Payment history',
-              style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: KodaraSpacing.space2),
           Text(
-            'Receipts update automatically after M-Pesa confirms payment.',
-            style: TextStyle(color: context.kodara.textSecondary),
+            due > 0
+                ? '${formatKes(due)} is currently due.'
+                : 'Your account is paid up. You can still pay rent early.',
+            style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: KodaraSpacing.space4),
+          FilledButton.icon(
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              PaymentSheet.show(
+                context,
+                tenancy: tenancy,
+                suggestedAmount: due > 0 ? due : tenancy.rentAmount,
+              );
+            },
+            icon: const Icon(Icons.phone_android_rounded, size: 19),
+            label: const Text('Send M-Pesa prompt'),
+          ),
+          const SizedBox(height: KodaraSpacing.space6),
+          const _Eyebrow('PAYMENT HISTORY'),
+          const SizedBox(height: KodaraSpacing.space2),
           paymentsAsync.when(
             loading: () => const LoadingSkeleton(),
             error: (error, _) => AsyncStateView(
@@ -485,58 +577,14 @@ class _PaymentsTab extends ConsumerWidget {
                   )
                 : Column(
                     children: [
-                      for (final payment in payments) ...[
-                        _PaymentCard(payment: payment),
-                        const SizedBox(height: KodaraSpacing.space3),
+                      for (var i = 0; i < payments.length; i++) ...[
+                        if (i > 0) const _HairLine(),
+                        _PaymentRow(payment: payments[i]),
                       ],
                     ],
                   ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _PaymentActionCard extends StatelessWidget {
-  const _PaymentActionCard({required this.tenancy, required this.balance});
-
-  final Tenancy tenancy;
-  final TenancyBalance? balance;
-
-  @override
-  Widget build(BuildContext context) {
-    final due = balance?.balance ?? tenancy.rentAmount;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(KodaraSpacing.space5),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Ready to pay?',
-                style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: KodaraSpacing.space2),
-            Text(
-              due > 0
-                  ? '${formatKes(due)} is currently due.'
-                  : 'Your account is paid up. You can still pay rent early.',
-              style: TextStyle(color: context.kodara.textSecondary),
-            ),
-            const SizedBox(height: KodaraSpacing.space4),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () => PaymentSheet.show(
-                  context,
-                  tenancy: tenancy,
-                  suggestedAmount: due > 0 ? due : tenancy.rentAmount,
-                ),
-                icon: const Icon(Icons.phone_android_rounded, size: 19),
-                label: const Text('Send M-Pesa prompt'),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -564,42 +612,29 @@ class _RepairsTab extends ConsumerWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(
           KodaraSpacing.space5,
-          KodaraSpacing.space3,
+          KodaraSpacing.space4,
           KodaraSpacing.space5,
-          KodaraSpacing.space6,
+          _dockClearance,
         ),
         children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(KodaraSpacing.space5),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Something needs attention?',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: KodaraSpacing.space2),
-                  Text(
-                    'Send details and photos straight to your landlord and track the fix here.',
-                    style: TextStyle(color: context.kodara.textSecondary),
-                  ),
-                  const SizedBox(height: KodaraSpacing.space4),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: reportIssue,
-                      icon: const Icon(Icons.add_rounded),
-                      label: const Text('Report a repair'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          Text(
+            'Something needs attention?',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: KodaraSpacing.space2),
+          Text(
+            'Send details and photos straight to your landlord and track the fix here.',
+            style: TextStyle(color: context.kodara.textSecondary),
+          ),
+          const SizedBox(height: KodaraSpacing.space4),
+          FilledButton.icon(
+            onPressed: reportIssue,
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('Report a repair'),
           ),
           const SizedBox(height: KodaraSpacing.space6),
-          Text('Your requests', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: KodaraSpacing.space4),
+          const _Eyebrow('YOUR REQUESTS'),
+          const SizedBox(height: KodaraSpacing.space2),
           requestsAsync.when(
             loading: () => const LoadingSkeleton(),
             error: (error, _) => AsyncStateView(
@@ -617,9 +652,9 @@ class _RepairsTab extends ConsumerWidget {
                   )
                 : Column(
                     children: [
-                      for (final request in requests) ...[
-                        _MaintenanceCard(request: request),
-                        const SizedBox(height: KodaraSpacing.space3),
+                      for (var i = 0; i < requests.length; i++) ...[
+                        if (i > 0) const _HairLine(),
+                        _RepairRow(request: requests[i]),
                       ],
                     ],
                   ),
@@ -654,9 +689,9 @@ class _AccountTab extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         KodaraSpacing.space5,
-        KodaraSpacing.space3,
+        KodaraSpacing.space4,
         KodaraSpacing.space5,
-        KodaraSpacing.space6,
+        _dockClearance,
       ),
       children: [
         Row(
@@ -667,7 +702,7 @@ class _AccountTab extends ConsumerWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: context.kodara.accentTint,
-                borderRadius: BorderRadius.circular(KodaraRadius.lg),
+                shape: BoxShape.circle,
               ),
               child: Text(
                 _initials(fullName),
@@ -698,58 +733,62 @@ class _AccountTab extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: KodaraSpacing.space6),
-        Text('Your lease', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: KodaraSpacing.space3),
-        Card(
+        const _Eyebrow('YOUR LEASE'),
+        const SizedBox(height: KodaraSpacing.space2),
+        _DetailRow(label: 'Property', value: tenancy.propertyName ?? '—'),
+        const _HairLine(),
+        _DetailRow(label: 'Unit', value: tenancy.unitName ?? '—'),
+        const _HairLine(),
+        _DetailRow(
+          label: 'Address',
+          value: tenancy.propertyAddress ?? '—',
+        ),
+        const _HairLine(),
+        _DetailRow(label: 'Monthly rent', value: formatKes(tenancy.rentAmount)),
+        const _HairLine(),
+        _DetailRow(label: 'Rent due', value: 'Day ${tenancy.billingDay}'),
+        const _HairLine(),
+        _DetailRow(
+            label: 'Lease started', value: formatDate(tenancy.startDate)),
+        const _HairLine(),
+        InkWell(
+          onTap: copyReference,
           child: Padding(
-            padding: const EdgeInsets.all(KodaraSpacing.space5),
-            child: Column(
+            padding: const EdgeInsets.symmetric(vertical: KodaraSpacing.space3),
+            child: Row(
               children: [
-                _LeaseRow(
-                  label: 'Property',
-                  value: tenancy.propertyName ?? '—',
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Payment reference',
+                        style: TextStyle(color: context.kodara.textSecondary),
+                      ),
+                      const SizedBox(height: KodaraSpacing.space1),
+                      Text(
+                        tenancy.paymentReference,
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                    ],
+                  ),
                 ),
-                _LeaseRow(
-                  label: 'Unit',
-                  value: tenancy.unitName ?? '—',
-                ),
-                _LeaseRow(
-                  label: 'Monthly rent',
-                  value: formatKes(tenancy.rentAmount),
-                ),
-                _LeaseRow(
-                  label: 'Rent due',
-                  value: 'Day ${tenancy.billingDay}',
-                ),
-                _LeaseRow(
-                  label: 'Lease started',
-                  value: formatDate(tenancy.startDate),
-                ),
+                Icon(Icons.copy_rounded,
+                    size: 18, color: context.kodara.textSecondary),
               ],
             ),
           ),
         ),
-        const SizedBox(height: KodaraSpacing.space4),
-        Card(
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: KodaraSpacing.space4,
-              vertical: KodaraSpacing.space2,
+        const SizedBox(height: KodaraSpacing.space8),
+        Center(
+          child: TextButton.icon(
+            style: TextButton.styleFrom(
+              foregroundColor: context.kodara.error,
             ),
-            title: const Text('Payment reference'),
-            subtitle: Text(tenancy.paymentReference),
-            trailing: IconButton(
-              tooltip: 'Copy payment reference',
-              onPressed: copyReference,
-              icon: const Icon(Icons.copy_rounded),
-            ),
+            onPressed: () => ref.read(kodaraServiceProvider).signOut(),
+            icon: const Icon(Icons.logout_rounded, size: 18),
+            label: const Text('Sign out'),
           ),
-        ),
-        const SizedBox(height: KodaraSpacing.space6),
-        OutlinedButton.icon(
-          onPressed: () => ref.read(kodaraServiceProvider).signOut(),
-          icon: const Icon(Icons.logout_rounded),
-          label: const Text('Sign out'),
         ),
       ],
     );
@@ -766,36 +805,62 @@ class _AccountTab extends ConsumerWidget {
   }
 }
 
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.label, required this.value});
+/// Two stats separated by a vertical hairline — no boxes, just typography.
+class _StatRow extends StatelessWidget {
+  const _StatRow({
+    required this.leftLabel,
+    required this.leftValue,
+    required this.rightLabel,
+    required this.rightValue,
+  });
 
-  final String label;
-  final String value;
+  final String leftLabel;
+  final String leftValue;
+  final String rightLabel;
+  final String rightValue;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(KodaraSpacing.space4),
-        child: Column(
+    Widget stat(String label, String value) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-              style: KodaraTypography.eyebrow.copyWith(
-                color: context.kodara.textSecondary,
-                letterSpacing: 1,
-              ),
-            ),
+            _Eyebrow(label),
             const SizedBox(height: KodaraSpacing.space2),
             Text(
               value,
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleMedium,
+              style: Theme.of(context).textTheme.headlineSmall,
             ),
           ],
+        );
+
+    return Row(
+      children: [
+        Expanded(child: stat(leftLabel, leftValue)),
+        Container(
+          width: 1,
+          height: 44,
+          color: context.kodara.border,
+          margin: const EdgeInsets.symmetric(horizontal: KodaraSpacing.space5),
         ),
+        Expanded(child: stat(rightLabel, rightValue)),
+      ],
+    );
+  }
+}
+
+class _Eyebrow extends StatelessWidget {
+  const _Eyebrow(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: KodaraTypography.eyebrow.copyWith(
+        color: context.kodara.textSecondary,
       ),
     );
   }
@@ -816,109 +881,106 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(
-          child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+        Expanded(child: _Eyebrow(title)),
+        TextButton(
+          style: TextButton.styleFrom(
+            padding: EdgeInsets.zero,
+            minimumSize: const Size(0, 32),
+            textStyle: const TextStyle(
+              fontFamily: kodaraFontFamily,
+              fontSize: KodaraTypography.sm,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          onPressed: onAction,
+          child: Text(actionLabel),
         ),
-        TextButton(onPressed: onAction, child: Text(actionLabel)),
       ],
     );
   }
 }
 
-class _PaymentCard extends StatelessWidget {
-  const _PaymentCard({required this.payment});
+/// De-boxed payment row: amount leads, receipt and date support, a quiet
+/// status dot closes the line.
+class _PaymentRow extends StatelessWidget {
+  const _PaymentRow({required this.payment});
 
   final Payment payment;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(KodaraSpacing.space4),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: context.kodara.successTint,
-                borderRadius: BorderRadius.circular(KodaraRadius.md),
-              ),
-              child: Icon(
-                Icons.south_west_rounded,
-                color: context.kodara.success,
-              ),
-            ),
-            const SizedBox(width: KodaraSpacing.space3),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    formatKes(payment.amount),
-                    style: Theme.of(context).textTheme.titleMedium,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: KodaraSpacing.space3),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  formatKes(payment.amount),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
-                  const SizedBox(height: KodaraSpacing.space1),
-                  Text(
-                    '${payment.providerTransactionId ?? 'M-Pesa'} · ${formatDate(payment.paidAt ?? payment.createdAt)}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: KodaraSpacing.space1),
+                Text(
+                  '${payment.providerTransactionId ?? 'M-Pesa'} · ${formatDate(payment.paidAt ?? payment.createdAt)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
             ),
-            const SizedBox(width: KodaraSpacing.space2),
-            StatusBadge(payment.status),
-          ],
-        ),
+          ),
+          const SizedBox(width: KodaraSpacing.space3),
+          StatusDot(payment.status),
+        ],
       ),
     );
   }
 }
 
-class _MaintenanceCard extends StatelessWidget {
-  const _MaintenanceCard({required this.request});
+class _RepairRow extends StatelessWidget {
+  const _RepairRow({required this.request});
 
   final MaintenanceRequest request;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(KodaraSpacing.space4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: KodaraSpacing.space3),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    request.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
+                Text(
+                  request.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
-                const SizedBox(width: KodaraSpacing.space3),
-                StatusBadge(request.status),
+                const SizedBox(height: KodaraSpacing.space1),
+                Text(
+                  '${formatDate(request.createdAt)} · ${statusLabelOf(request.priority)} priority'
+                  '${request.photoPaths.isNotEmpty ? ' · ${request.photoPaths.length} photo${request.photoPaths.length == 1 ? '' : 's'}' : ''}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ],
             ),
-            const SizedBox(height: KodaraSpacing.space2),
-            Text(
-              '${formatDate(request.createdAt)} · ${_titleCase(request.priority)} priority'
-              '${request.photoPaths.isNotEmpty ? ' · ${request.photoPaths.length} photo${request.photoPaths.length == 1 ? '' : 's'}' : ''}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(width: KodaraSpacing.space3),
+          StatusDot(request.status),
+        ],
       ),
     );
   }
 }
 
-class _LeaseRow extends StatelessWidget {
-  const _LeaseRow({required this.label, required this.value});
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -926,7 +988,7 @@ class _LeaseRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: KodaraSpacing.space2),
+      padding: const EdgeInsets.symmetric(vertical: KodaraSpacing.space3),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -950,32 +1012,27 @@ class _LeaseRow extends StatelessWidget {
   }
 }
 
-class _CompactEmptyState extends StatelessWidget {
-  const _CompactEmptyState({required this.icon, required this.message});
+class _HairLine extends StatelessWidget {
+  const _HairLine();
 
-  final IconData icon;
+  @override
+  Widget build(BuildContext context) {
+    return Divider(height: 1, thickness: 1, color: context.kodara.border);
+  }
+}
+
+class _QuietNote extends StatelessWidget {
+  const _QuietNote({required this.message});
+
   final String message;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(KodaraSpacing.space4),
-      decoration: BoxDecoration(
-        color: context.kodara.surface,
-        border: Border.all(color: context.kodara.border),
-        borderRadius: BorderRadius.circular(KodaraRadius.lg),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: context.kodara.textSecondary),
-          const SizedBox(width: KodaraSpacing.space3),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(color: context.kodara.textSecondary),
-            ),
-          ),
-        ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: KodaraSpacing.space3),
+      child: Text(
+        message,
+        style: TextStyle(color: context.kodara.textSecondary),
       ),
     );
   }
@@ -1016,10 +1073,4 @@ class _ButtonLoader extends StatelessWidget {
       child: CircularProgressIndicator(strokeWidth: 2),
     );
   }
-}
-
-String _titleCase(String value) {
-  if (value.isEmpty) return value;
-  final normalized = value.replaceAll('_', ' ');
-  return '${normalized[0].toUpperCase()}${normalized.substring(1)}';
 }
