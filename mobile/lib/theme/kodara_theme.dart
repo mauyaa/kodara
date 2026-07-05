@@ -2,36 +2,31 @@ import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 
 /// Single source of truth for Kodara's design tokens, translated 1:1 from
-/// docs/DESIGN_SYSTEM.md. Every color/spacing/radius/shadow/motion value the
-/// app uses must come from here — no hex literals, magic paddings, ad hoc
-/// durations, or inline BoxShadows anywhere else in lib/. This keeps the
-/// Flutter client visually identical to the Next.js web app, which consumes
-/// the same spec.
+/// DESIGN.md (warm paper + one emerald accent). Every color/spacing/radius/
+/// shadow/motion value the app uses must come from here — no hex literals,
+/// magic paddings, ad hoc durations, or inline BoxShadows anywhere else in
+/// lib/. This keeps the Flutter client visually identical to the web app.
 ///
-/// Section numbers below mirror DESIGN_SYSTEM.md section numbers.
+/// Widgets must not reference [KodaraColors] directly for anything that has
+/// to invert in dark mode — use `context.kodara` (the theme extension) so
+/// both themes render correctly.
+
+const String kodaraFontFamily = 'PlusJakartaSans';
+
 class KodaraColors {
   const KodaraColors._();
 
-  // 1. Color — "The Accent" + "Symbolism"
   // The ONE accent: primary buttons, active nav/tab, links, live-payment
-  // dot, focus rings, chart fill, the single hero number per screen.
+  // dot, focus rings, the single hero number per screen.
   static const Color accent = Color(0xFF0B8D70);
-
-  // Pressed/hover-equivalent of accent only. Never used standalone.
   static const Color accentDark = Color(0xFF087A63);
+  static const Color accentTint = Color(0x140B8D70);
+  static const Color accentTintStrong = Color(0x240B8D70);
 
-  // Subtle backgrounds: active nav row, selected badge, hover row.
-  static const Color accentTint = Color(0x140B8D70); // accent @ 8% opacity
-
-  // Focus ring glow, stronger badge fill.
-  static const Color accentTintStrong = Color(0x240B8D70); // accent @ 14%
-
-  // The one dark chrome surface: app bar/header backgrounds, tenant balance
-  // card, bottom nav bar background if dark. Not used for body text.
+  // The one dark chrome surface: tenant balance card.
   static const Color ink = Color(0xFF0B2922);
 
-  // Warm paper foundation — matches the web DESIGN.md tokens (the page is
-  // paper, not plastic).
+  // Warm paper foundation — matches the web DESIGN.md tokens.
   static const Color background = Color(0xFFFAF9F7);
   static const Color surface = Color(0xFFFFFFFF);
 
@@ -45,22 +40,50 @@ class KodaraColors {
   static const Color warning = Color(0xFFF59E0B);
   static const Color error = Color(0xFFEF4444);
 
-  // Tinted variants of the semantic colors for pill/badge backgrounds
-  // (approx. 14% opacity over white, matching the accentTintStrong ratio).
   static const Color successTint = Color(0x2410B981);
   static const Color warningTint = Color(0x24F59E0B);
   static const Color errorTint = Color(0x24EF4444);
 
-  /// Foreground-on-white text color to pair with [ink] surfaces at reduced
-  /// opacity, for secondary copy on the tenant balance card etc.
-  static const Color onInkSecondary = Color(0xB3FFFFFF); // white @ ~70%
-  static const Color onInkMuted = Color(0x99FFFFFF); // white @ 60%
+  static const Color onInkSecondary = Color(0xB3FFFFFF);
+  static const Color onInkMuted = Color(0x99FFFFFF);
+}
+
+/// Dark counterparts. Warm near-black, not blue-black; the accent gains
+/// luminance so it keeps AA contrast on dark surfaces.
+class KodaraColorsDark {
+  const KodaraColorsDark._();
+
+  static const Color accent = Color(0xFF2FB68E);
+  static const Color accentDark = Color(0xFF26A37E);
+  static const Color accentTint = Color(0x1F2FB68E);
+  static const Color accentTintStrong = Color(0x332FB68E);
+
+  // Balance card ink lifts slightly above the background.
+  static const Color ink = Color(0xFF11362C);
+
+  static const Color background = Color(0xFF14120F);
+  static const Color surface = Color(0xFF1D1A16);
+
+  static const Color textPrimary = Color(0xFFF3F1ED);
+  static const Color textSecondary = Color(0xFFA39C92);
+
+  static const Color border = Color(0xFF322E28);
+
+  static const Color success = Color(0xFF34D399);
+  static const Color warning = Color(0xFFFBBF24);
+  static const Color error = Color(0xFFF87171);
+
+  static const Color successTint = Color(0x2934D399);
+  static const Color warningTint = Color(0x29FBBF24);
+  static const Color errorTint = Color(0x29F87171);
+
+  static const Color onInkSecondary = Color(0xB3FFFFFF);
+  static const Color onInkMuted = Color(0x99FFFFFF);
 }
 
 class KodaraSpacing {
   const KodaraSpacing._();
 
-  // 3. Spacing — 8px base grid.
   static const double space1 = 4;
   static const double space2 = 8;
   static const double space3 = 12;
@@ -70,44 +93,36 @@ class KodaraSpacing {
   static const double space8 = 48;
   static const double space10 = 64;
 
-  /// Tenant portal frame width (tenant portal is intentionally narrow /
-  /// mobile-first). Mirrors --frame-tenant on web.
   static const double frameTenant = 520;
 }
 
 class KodaraRadius {
   const KodaraRadius._();
 
-  // 4. Radius — "Denoising"
   static const double sm = 8;
   static const double md = 12;
   static const double lg = 16;
-  static const double xl = 22; // bottom sheets / full-screen mobile modals
-  static const double full = 999; // pills, avatars, dots
+  static const double xl = 22;
+  static const double full = 999;
 }
 
 class KodaraShadows {
   const KodaraShadows._();
 
-  // 5. Shadow — direct translation of the rgba box-shadow values.
-  // Default card.
   static const List<BoxShadow> card = [
-    BoxShadow(color: Color(0x140F172A), offset: Offset(0, 1), blurRadius: 3),
+    BoxShadow(color: Color(0x141C1917), offset: Offset(0, 1), blurRadius: 3),
   ];
 
-  // Hover/dropdown/popover.
   static const List<BoxShadow> elevated = [
-    BoxShadow(color: Color(0x1F0F172A), offset: Offset(0, 4), blurRadius: 12),
+    BoxShadow(color: Color(0x1F1C1917), offset: Offset(0, 4), blurRadius: 12),
   ];
 
-  // Modal/sheet.
   static const List<BoxShadow> modal = [
-    BoxShadow(color: Color(0x330F172A), offset: Offset(0, 10), blurRadius: 30),
+    BoxShadow(color: Color(0x331C1917), offset: Offset(0, 10), blurRadius: 30),
   ];
 
-  // The ONE featured surface per screen (tenant balance card, primary CTA) —
-  // a green-tinted shadow so the shadow itself signals "this is the
-  // important one," not just generic elevation.
+  /// The ONE featured surface per screen (tenant balance card) — a
+  /// green-tinted shadow so the shadow itself signals importance.
   static const List<BoxShadow> accent = [
     BoxShadow(color: Color(0x380B8D70), offset: Offset(0, 16), blurRadius: 32),
   ];
@@ -116,125 +131,62 @@ class KodaraShadows {
 class KodaraMotion {
   const KodaraMotion._();
 
-  // 6. Motion
-  static const Duration fast =
-      Duration(milliseconds: 120); // button press, toggle
-  static const Duration base =
-      Duration(milliseconds: 180); // hover, focus, tab switch
-  static const Duration slow = Duration(milliseconds: 260); // modal/sheet enter
+  static const Duration fast = Duration(milliseconds: 120);
+  static const Duration base = Duration(milliseconds: 180);
+  static const Duration slow = Duration(milliseconds: 260);
 
-  /// cubic-bezier(.4,0,.2,1) — default for everything.
   static const Curve easeStandard = Cubic(0.4, 0, 0.2, 1);
-
-  /// cubic-bezier(.32,.72,0,1) — modal/sheet entrance only.
   static const Curve easeSpring = Cubic(0.32, 0.72, 0, 1);
 }
 
 class KodaraTypography {
   const KodaraTypography._();
 
-  // 2. Typography — tight modular scale; exactly one "hero" size per screen.
-  static const double xs = 12; // meta, timestamps
-  static const double sm = 13; // labels, captions
-  static const double base = 14; // body
-  static const double md = 16; // body-lg, h4
-  static const double lg = 18; // h4 / emphasis
-  static const double xl = 20; // h3
-  static const double xxl = 25; // h2 (20 * 1.25)
-  static const double display = 34; // h1 (~21 * 1.618)
+  static const double xs = 12;
+  static const double sm = 13;
+  static const double base = 14;
+  static const double md = 16;
+  static const double lg = 18;
+  static const double xl = 20;
+  static const double xxl = 25;
+  static const double display = 34;
 
-  /// The ONE golden-ratio hero number per screen only (balance amount,
-  /// headline chart stat). Never use this size more than once per screen.
+  /// The ONE golden-ratio hero number per screen only.
   static const double hero = 40;
 
   static TextTheme textTheme(Color primary, Color secondary) {
+    TextStyle style(
+            double size, FontWeight weight, Color color, double height) =>
+        TextStyle(
+          fontFamily: kodaraFontFamily,
+          fontSize: size,
+          fontWeight: weight,
+          color: color,
+          height: height,
+        );
+
     return TextTheme(
-      // Hero is intentionally NOT part of the standard TextTheme slots so it
-      // can't be reached for accidentally — use KodaraTypography.heroStyle
-      // explicitly at the one call site per screen instead.
-      displayLarge: TextStyle(
-          fontSize: display,
-          fontWeight: FontWeight.w600,
-          color: primary,
-          height: 1.15),
-      displayMedium: TextStyle(
-          fontSize: xxl,
-          fontWeight: FontWeight.w600,
-          color: primary,
-          height: 1.2),
-      displaySmall: TextStyle(
-          fontSize: xl,
-          fontWeight: FontWeight.w600,
-          color: primary,
-          height: 1.25),
-      headlineLarge: TextStyle(
-          fontSize: xxl,
-          fontWeight: FontWeight.w600,
-          color: primary,
-          height: 1.2),
-      headlineMedium: TextStyle(
-          fontSize: xl,
-          fontWeight: FontWeight.w600,
-          color: primary,
-          height: 1.25),
-      headlineSmall: TextStyle(
-          fontSize: lg,
-          fontWeight: FontWeight.w600,
-          color: primary,
-          height: 1.3),
-      titleLarge: TextStyle(
-          fontSize: lg,
-          fontWeight: FontWeight.w600,
-          color: primary,
-          height: 1.3),
-      titleMedium: TextStyle(
-          fontSize: md,
-          fontWeight: FontWeight.w600,
-          color: primary,
-          height: 1.3),
-      titleSmall: TextStyle(
-          fontSize: base,
-          fontWeight: FontWeight.w600,
-          color: primary,
-          height: 1.35),
-      bodyLarge: TextStyle(
-          fontSize: md,
-          fontWeight: FontWeight.w400,
-          color: primary,
-          height: 1.4),
-      bodyMedium: TextStyle(
-          fontSize: base,
-          fontWeight: FontWeight.w400,
-          color: primary,
-          height: 1.4),
-      bodySmall: TextStyle(
-          fontSize: sm,
-          fontWeight: FontWeight.w400,
-          color: secondary,
-          height: 1.4),
-      labelLarge: TextStyle(
-          fontSize: base,
-          fontWeight: FontWeight.w600,
-          color: primary,
-          height: 1.3),
-      labelMedium: TextStyle(
-          fontSize: sm,
-          fontWeight: FontWeight.w600,
-          color: secondary,
-          height: 1.3),
-      labelSmall: TextStyle(
-          fontSize: xs,
-          fontWeight: FontWeight.w600,
-          color: secondary,
-          height: 1.3),
+      displayLarge: style(display, FontWeight.w600, primary, 1.15),
+      displayMedium: style(xxl, FontWeight.w600, primary, 1.2),
+      displaySmall: style(xl, FontWeight.w600, primary, 1.25),
+      headlineLarge: style(xxl, FontWeight.w600, primary, 1.2),
+      headlineMedium: style(xl, FontWeight.w600, primary, 1.25),
+      headlineSmall: style(lg, FontWeight.w600, primary, 1.3),
+      titleLarge: style(lg, FontWeight.w600, primary, 1.3),
+      titleMedium: style(md, FontWeight.w600, primary, 1.3),
+      titleSmall: style(base, FontWeight.w600, primary, 1.35),
+      bodyLarge: style(md, FontWeight.w400, primary, 1.4),
+      bodyMedium: style(base, FontWeight.w400, primary, 1.4),
+      bodySmall: style(sm, FontWeight.w400, secondary, 1.4),
+      labelLarge: style(base, FontWeight.w600, primary, 1.3),
+      labelMedium: style(sm, FontWeight.w600, secondary, 1.3),
+      labelSmall: style(xs, FontWeight.w600, secondary, 1.3),
     );
   }
 
-  /// The single hero number style (40px, weight 700 — hero + nav-active are
-  /// the only places weight goes above 600). Apply this to at most one
-  /// number per screen: the tenant balance amount on the home tab, and the
-  /// top headline stat on the landlord portfolio tab.
+  /// The single hero number style. At most one per screen.
   static const TextStyle heroStyle = TextStyle(
+    fontFamily: kodaraFontFamily,
     fontSize: hero,
     fontWeight: FontWeight.w700,
     color: Colors.white,
@@ -243,22 +195,18 @@ class KodaraTypography {
     fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
   );
 
-  /// Hero number variant for use on light surfaces (accent- or ink-free
-  /// background) — same size/weight, dark text.
-  static const TextStyle heroStyleOnLight = TextStyle(
-    fontSize: hero,
-    fontWeight: FontWeight.w700,
-    color: KodaraColors.textPrimary,
-    height: 1.1,
-    letterSpacing: -0.5,
-    fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+  /// Eyebrow label — uppercase micro-heading above a section or hero.
+  static const TextStyle eyebrow = TextStyle(
+    fontFamily: kodaraFontFamily,
+    fontSize: xs,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 1.4,
+    height: 1.3,
   );
 }
 
-/// App-wide [ThemeExtension] so widgets can reach tokens via
-/// `Theme.of(context).extension<KodaraThemeExtension>()` when a raw
-/// constant isn't convenient (e.g. inside const contexts prefer the
-/// static classes above; this extension is for theme-driven lookups).
+/// App-wide [ThemeExtension]; widgets reach tokens via `context.kodara` so
+/// light and dark both resolve correctly.
 @immutable
 class KodaraThemeExtension extends ThemeExtension<KodaraThemeExtension> {
   const KodaraThemeExtension({
@@ -267,11 +215,19 @@ class KodaraThemeExtension extends ThemeExtension<KodaraThemeExtension> {
     required this.accentTint,
     required this.accentTintStrong,
     required this.ink,
+    required this.background,
+    required this.surface,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.border,
     required this.success,
     required this.warning,
     required this.error,
-    required this.textSecondary,
-    required this.border,
+    required this.successTint,
+    required this.warningTint,
+    required this.errorTint,
+    required this.onInkSecondary,
+    required this.onInkMuted,
   });
 
   final Color accent;
@@ -279,23 +235,60 @@ class KodaraThemeExtension extends ThemeExtension<KodaraThemeExtension> {
   final Color accentTint;
   final Color accentTintStrong;
   final Color ink;
+  final Color background;
+  final Color surface;
+  final Color textPrimary;
+  final Color textSecondary;
+  final Color border;
   final Color success;
   final Color warning;
   final Color error;
-  final Color textSecondary;
-  final Color border;
+  final Color successTint;
+  final Color warningTint;
+  final Color errorTint;
+  final Color onInkSecondary;
+  final Color onInkMuted;
 
-  static const KodaraThemeExtension standard = KodaraThemeExtension(
+  static const KodaraThemeExtension light = KodaraThemeExtension(
     accent: KodaraColors.accent,
     accentDark: KodaraColors.accentDark,
     accentTint: KodaraColors.accentTint,
     accentTintStrong: KodaraColors.accentTintStrong,
     ink: KodaraColors.ink,
+    background: KodaraColors.background,
+    surface: KodaraColors.surface,
+    textPrimary: KodaraColors.textPrimary,
+    textSecondary: KodaraColors.textSecondary,
+    border: KodaraColors.border,
     success: KodaraColors.success,
     warning: KodaraColors.warning,
     error: KodaraColors.error,
-    textSecondary: KodaraColors.textSecondary,
-    border: KodaraColors.border,
+    successTint: KodaraColors.successTint,
+    warningTint: KodaraColors.warningTint,
+    errorTint: KodaraColors.errorTint,
+    onInkSecondary: KodaraColors.onInkSecondary,
+    onInkMuted: KodaraColors.onInkMuted,
+  );
+
+  static const KodaraThemeExtension dark = KodaraThemeExtension(
+    accent: KodaraColorsDark.accent,
+    accentDark: KodaraColorsDark.accentDark,
+    accentTint: KodaraColorsDark.accentTint,
+    accentTintStrong: KodaraColorsDark.accentTintStrong,
+    ink: KodaraColorsDark.ink,
+    background: KodaraColorsDark.background,
+    surface: KodaraColorsDark.surface,
+    textPrimary: KodaraColorsDark.textPrimary,
+    textSecondary: KodaraColorsDark.textSecondary,
+    border: KodaraColorsDark.border,
+    success: KodaraColorsDark.success,
+    warning: KodaraColorsDark.warning,
+    error: KodaraColorsDark.error,
+    successTint: KodaraColorsDark.successTint,
+    warningTint: KodaraColorsDark.warningTint,
+    errorTint: KodaraColorsDark.errorTint,
+    onInkSecondary: KodaraColorsDark.onInkSecondary,
+    onInkMuted: KodaraColorsDark.onInkMuted,
   );
 
   @override
@@ -305,11 +298,19 @@ class KodaraThemeExtension extends ThemeExtension<KodaraThemeExtension> {
     Color? accentTint,
     Color? accentTintStrong,
     Color? ink,
+    Color? background,
+    Color? surface,
+    Color? textPrimary,
+    Color? textSecondary,
+    Color? border,
     Color? success,
     Color? warning,
     Color? error,
-    Color? textSecondary,
-    Color? border,
+    Color? successTint,
+    Color? warningTint,
+    Color? errorTint,
+    Color? onInkSecondary,
+    Color? onInkMuted,
   }) {
     return KodaraThemeExtension(
       accent: accent ?? this.accent,
@@ -317,11 +318,19 @@ class KodaraThemeExtension extends ThemeExtension<KodaraThemeExtension> {
       accentTint: accentTint ?? this.accentTint,
       accentTintStrong: accentTintStrong ?? this.accentTintStrong,
       ink: ink ?? this.ink,
+      background: background ?? this.background,
+      surface: surface ?? this.surface,
+      textPrimary: textPrimary ?? this.textPrimary,
+      textSecondary: textSecondary ?? this.textSecondary,
+      border: border ?? this.border,
       success: success ?? this.success,
       warning: warning ?? this.warning,
       error: error ?? this.error,
-      textSecondary: textSecondary ?? this.textSecondary,
-      border: border ?? this.border,
+      successTint: successTint ?? this.successTint,
+      warningTint: warningTint ?? this.warningTint,
+      errorTint: errorTint ?? this.errorTint,
+      onInkSecondary: onInkSecondary ?? this.onInkSecondary,
+      onInkMuted: onInkMuted ?? this.onInkMuted,
     );
   }
 
@@ -336,61 +345,85 @@ class KodaraThemeExtension extends ThemeExtension<KodaraThemeExtension> {
       accentTintStrong:
           Color.lerp(accentTintStrong, other.accentTintStrong, t)!,
       ink: Color.lerp(ink, other.ink, t)!,
+      background: Color.lerp(background, other.background, t)!,
+      surface: Color.lerp(surface, other.surface, t)!,
+      textPrimary: Color.lerp(textPrimary, other.textPrimary, t)!,
+      textSecondary: Color.lerp(textSecondary, other.textSecondary, t)!,
+      border: Color.lerp(border, other.border, t)!,
       success: Color.lerp(success, other.success, t)!,
       warning: Color.lerp(warning, other.warning, t)!,
       error: Color.lerp(error, other.error, t)!,
-      textSecondary: Color.lerp(textSecondary, other.textSecondary, t)!,
-      border: Color.lerp(border, other.border, t)!,
+      successTint: Color.lerp(successTint, other.successTint, t)!,
+      warningTint: Color.lerp(warningTint, other.warningTint, t)!,
+      errorTint: Color.lerp(errorTint, other.errorTint, t)!,
+      onInkSecondary: Color.lerp(onInkSecondary, other.onInkSecondary, t)!,
+      onInkMuted: Color.lerp(onInkMuted, other.onInkMuted, t)!,
     );
   }
 }
 
-/// Builds the app's [ThemeData] from the tokens above. This is the only
-/// place a [ColorScheme] is constructed — main.dart just calls this.
-ThemeData buildKodaraTheme() {
-  const colorScheme = ColorScheme(
-    brightness: Brightness.light,
-    primary: KodaraColors.accent,
+/// Ergonomic accessor: `context.kodara.accent` etc.
+extension KodaraThemeContext on BuildContext {
+  KodaraThemeExtension get kodara =>
+      Theme.of(this).extension<KodaraThemeExtension>() ??
+      KodaraThemeExtension.light;
+}
+
+ThemeData buildKodaraTheme() =>
+    _buildTheme(KodaraThemeExtension.light, Brightness.light);
+
+ThemeData buildKodaraDarkTheme() =>
+    _buildTheme(KodaraThemeExtension.dark, Brightness.dark);
+
+ThemeData _buildTheme(KodaraThemeExtension p, Brightness brightness) {
+  final colorScheme = ColorScheme(
+    brightness: brightness,
+    primary: p.accent,
     onPrimary: Colors.white,
-    primaryContainer: KodaraColors.accentTint,
-    onPrimaryContainer: KodaraColors.accentDark,
-    secondary: KodaraColors.ink,
+    primaryContainer: p.accentTint,
+    onPrimaryContainer: p.accentDark,
+    secondary: p.ink,
     onSecondary: Colors.white,
-    secondaryContainer: KodaraColors.accentTint,
-    onSecondaryContainer: KodaraColors.ink,
-    tertiary: KodaraColors.accentDark,
+    secondaryContainer: p.accentTint,
+    onSecondaryContainer: p.ink,
+    tertiary: p.accentDark,
     onTertiary: Colors.white,
-    error: KodaraColors.error,
+    error: p.error,
     onError: Colors.white,
-    errorContainer: KodaraColors.errorTint,
-    onErrorContainer: KodaraColors.error,
-    surface: KodaraColors.surface,
-    onSurface: KodaraColors.textPrimary,
-    surfaceContainerHighest: KodaraColors.background,
-    onSurfaceVariant: KodaraColors.textSecondary,
-    outline: KodaraColors.border,
-    outlineVariant: KodaraColors.border,
-    shadow: Color(0x140F172A),
-    scrim: Color(0x800F172A),
-    inverseSurface: KodaraColors.ink,
+    errorContainer: p.errorTint,
+    onErrorContainer: p.error,
+    surface: p.surface,
+    onSurface: p.textPrimary,
+    surfaceContainerHighest: p.background,
+    onSurfaceVariant: p.textSecondary,
+    outline: p.border,
+    outlineVariant: p.border,
+    shadow: const Color(0x141C1917),
+    scrim: const Color(0x801C1917),
+    inverseSurface: p.ink,
     onInverseSurface: Colors.white,
-    inversePrimary: KodaraColors.accentTintStrong,
+    inversePrimary: p.accentTintStrong,
   );
 
-  final textTheme = KodaraTypography.textTheme(
-      KodaraColors.textPrimary, KodaraColors.textSecondary);
+  final textTheme = KodaraTypography.textTheme(p.textPrimary, p.textSecondary);
+
+  const buttonTextStyle = TextStyle(
+    fontFamily: kodaraFontFamily,
+    fontWeight: FontWeight.w600,
+    fontSize: KodaraTypography.base,
+  );
 
   return ThemeData(
     useMaterial3: true,
     colorScheme: colorScheme,
-    scaffoldBackgroundColor: KodaraColors.background,
+    fontFamily: kodaraFontFamily,
+    scaffoldBackgroundColor: p.background,
     textTheme: textTheme,
-    splashColor: KodaraColors.accentDark.withValues(alpha: 0.12),
-    highlightColor: KodaraColors.accentDark.withValues(alpha: 0.08),
-    fontFamily: null,
-    appBarTheme: const AppBarTheme(
-      backgroundColor: KodaraColors.surface,
-      foregroundColor: KodaraColors.textPrimary,
+    splashColor: p.accentDark.withValues(alpha: 0.12),
+    highlightColor: p.accentDark.withValues(alpha: 0.08),
+    appBarTheme: AppBarTheme(
+      backgroundColor: p.background,
+      foregroundColor: p.textPrimary,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       centerTitle: false,
@@ -398,121 +431,117 @@ ThemeData buildKodaraTheme() {
     cardTheme: CardThemeData(
       elevation: 0,
       margin: EdgeInsets.zero,
-      color: KodaraColors.surface,
+      color: p.surface,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(KodaraRadius.md),
-        side: const BorderSide(color: KodaraColors.border),
+        side: BorderSide(color: p.border),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: KodaraColors.surface,
+      fillColor: p.surface,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(KodaraRadius.sm),
-        borderSide: const BorderSide(color: KodaraColors.border),
+        borderSide: BorderSide(color: p.border),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(KodaraRadius.sm),
-        borderSide: const BorderSide(color: KodaraColors.border),
+        borderSide: BorderSide(color: p.border),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(KodaraRadius.sm),
-        borderSide: const BorderSide(color: KodaraColors.accent, width: 1.5),
+        borderSide: BorderSide(color: p.accent, width: 1.5),
       ),
-      labelStyle: const TextStyle(color: KodaraColors.textSecondary),
-      hintStyle: const TextStyle(color: KodaraColors.textSecondary),
+      labelStyle:
+          TextStyle(fontFamily: kodaraFontFamily, color: p.textSecondary),
+      hintStyle:
+          TextStyle(fontFamily: kodaraFontFamily, color: p.textSecondary),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        backgroundColor: KodaraColors.accent,
+        backgroundColor: p.accent,
         foregroundColor: Colors.white,
-        disabledBackgroundColor: KodaraColors.accent.withValues(alpha: 0.4),
+        disabledBackgroundColor: p.accent.withValues(alpha: 0.4),
         minimumSize: const Size.fromHeight(52),
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(KodaraRadius.sm)),
-        textStyle: const TextStyle(
-            fontWeight: FontWeight.w600, fontSize: KodaraTypography.base),
+        textStyle: buttonTextStyle,
       ).copyWith(
         overlayColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.pressed)
-              ? KodaraColors.accentDark.withValues(alpha: 0.16)
+              ? p.accentDark.withValues(alpha: 0.16)
               : null,
         ),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: KodaraColors.accent,
-        side: const BorderSide(color: KodaraColors.border),
+        foregroundColor: p.accent,
+        side: BorderSide(color: p.border),
         minimumSize: const Size.fromHeight(52),
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(KodaraRadius.sm)),
-        textStyle: const TextStyle(
-            fontWeight: FontWeight.w600, fontSize: KodaraTypography.base),
+        textStyle: buttonTextStyle,
       ).copyWith(
         overlayColor: WidgetStateProperty.resolveWith(
-          (states) => states.contains(WidgetState.pressed)
-              ? KodaraColors.accentTint
-              : null,
+          (states) =>
+              states.contains(WidgetState.pressed) ? p.accentTint : null,
         ),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
-        foregroundColor: KodaraColors.accent,
-        textStyle: const TextStyle(
-            fontWeight: FontWeight.w600, fontSize: KodaraTypography.base),
+        foregroundColor: p.accent,
+        textStyle: buttonTextStyle,
       ).copyWith(
         overlayColor: WidgetStateProperty.resolveWith(
-          (states) => states.contains(WidgetState.pressed)
-              ? KodaraColors.accentTint
-              : null,
+          (states) =>
+              states.contains(WidgetState.pressed) ? p.accentTint : null,
         ),
       ),
     ),
-    floatingActionButtonTheme: const FloatingActionButtonThemeData(
-      backgroundColor: KodaraColors.accent,
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      backgroundColor: p.accent,
       foregroundColor: Colors.white,
     ),
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: KodaraColors.surface,
-      indicatorColor: KodaraColors.accentTint,
+      backgroundColor: p.surface,
+      indicatorColor: p.accentTint,
       surfaceTintColor: Colors.transparent,
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
         final selected = states.contains(WidgetState.selected);
         return TextStyle(
+          fontFamily: kodaraFontFamily,
           fontSize: KodaraTypography.xs,
           fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-          color: selected ? KodaraColors.accent : KodaraColors.textSecondary,
+          color: selected ? p.accent : p.textSecondary,
         );
       }),
       iconTheme: WidgetStateProperty.resolveWith((states) {
         final selected = states.contains(WidgetState.selected);
         return IconThemeData(
-          color: selected ? KodaraColors.accent : KodaraColors.textSecondary,
+          color: selected ? p.accent : p.textSecondary,
         );
       }),
     ),
-    dividerTheme: const DividerThemeData(
-        color: KodaraColors.border, thickness: 1, space: 1),
-    iconTheme: const IconThemeData(color: KodaraColors.textSecondary),
-    listTileTheme: const ListTileThemeData(
-      iconColor: KodaraColors.textSecondary,
-      textColor: KodaraColors.textPrimary,
+    dividerTheme: DividerThemeData(color: p.border, thickness: 1, space: 1),
+    iconTheme: IconThemeData(color: p.textSecondary),
+    listTileTheme: ListTileThemeData(
+      iconColor: p.textSecondary,
+      textColor: p.textPrimary,
     ),
-    progressIndicatorTheme:
-        const ProgressIndicatorThemeData(color: KodaraColors.accent),
+    progressIndicatorTheme: ProgressIndicatorThemeData(color: p.accent),
     dialogTheme: DialogThemeData(
-      backgroundColor: KodaraColors.surface,
+      backgroundColor: p.surface,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(KodaraRadius.lg)),
     ),
-    bottomSheetTheme: const BottomSheetThemeData(
-      backgroundColor: KodaraColors.surface,
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: p.surface,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius:
             BorderRadius.vertical(top: Radius.circular(KodaraRadius.xl)),
       ),
@@ -523,6 +552,6 @@ ThemeData buildKodaraTheme() {
         TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
       },
     ),
-    extensions: const [KodaraThemeExtension.standard],
+    extensions: [p],
   );
 }

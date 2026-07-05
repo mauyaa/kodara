@@ -47,7 +47,7 @@ class AsyncStateView extends StatelessWidget {
                   ? Icons.wifi_off_rounded
                   : Icons.error_outline_rounded,
               size: 40,
-              color: KodaraColors.error,
+              color: context.kodara.error,
             ),
             const SizedBox(height: KodaraSpacing.space3),
             Text(
@@ -61,7 +61,7 @@ class AsyncStateView extends StatelessWidget {
               style: Theme.of(context)
                   .textTheme
                   .bodyMedium
-                  ?.copyWith(color: KodaraColors.textSecondary),
+                  ?.copyWith(color: context.kodara.textSecondary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: KodaraSpacing.space4),
@@ -88,7 +88,7 @@ class LoadingSkeleton extends StatelessWidget {
       height: height,
       margin: const EdgeInsets.only(bottom: KodaraSpacing.space3),
       decoration: BoxDecoration(
-        color: KodaraColors.border,
+        color: context.kodara.border,
         borderRadius: BorderRadius.circular(KodaraRadius.lg),
       ),
     );
@@ -117,7 +117,7 @@ class EmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 36, color: KodaraColors.textSecondary),
+          Icon(icon, size: 36, color: context.kodara.textSecondary),
           const SizedBox(height: KodaraSpacing.space3),
           Text(title,
               style: Theme.of(context).textTheme.titleMedium,
@@ -128,7 +128,7 @@ class EmptyState extends StatelessWidget {
             style: Theme.of(context)
                 .textTheme
                 .bodyMedium
-                ?.copyWith(color: KodaraColors.textSecondary),
+                ?.copyWith(color: context.kodara.textSecondary),
             textAlign: TextAlign.center,
           ),
           if (action != null) ...[
@@ -148,15 +148,15 @@ class NotConfiguredNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(KodaraSpacing.space5),
+    return const Padding(
+      padding: EdgeInsets.all(KodaraSpacing.space5),
       child: Card(
         child: Padding(
-          padding: const EdgeInsets.all(KodaraSpacing.space4),
+          padding: EdgeInsets.all(KodaraSpacing.space4),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
-            children: const [
+            children: [
               Text('Not connected',
                   style: TextStyle(fontWeight: FontWeight.w600)),
               SizedBox(height: KodaraSpacing.space2),

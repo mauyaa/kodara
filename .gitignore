@@ -46,6 +46,10 @@ next-env.d.ts
 kodara-init.bundle
 .claude/settings.local.json
 supabase/.temp/
+.tooling/
+.dart-local/
+.dart-roaming/
+.pub-cache/
 
 # flutter artifacts
 mobile/.dart_tool/

@@ -90,7 +90,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             : 'Welcome back';
 
     return Scaffold(
-      backgroundColor: KodaraColors.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -102,20 +101,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Center(
-                      child: KodaraLogo(size: 56, color: KodaraColors.ink),
+                    Center(
+                      child: KodaraLogo(
+                          size: 56, color: context.kodara.textPrimary),
                     ),
                     const SizedBox(height: KodaraSpacing.space3),
                     Text(
                       'Kodara',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineMedium
-                          ?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.4,
-                          ),
+                      style:
+                          Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.4,
+                              ),
                     ),
                     const SizedBox(height: KodaraSpacing.space2),
                     Text(
@@ -124,19 +122,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       style: Theme.of(context)
                           .textTheme
                           .bodyMedium
-                          ?.copyWith(color: KodaraColors.textSecondary),
+                          ?.copyWith(color: context.kodara.textSecondary),
                     ),
                     const SizedBox(height: KodaraSpacing.space6),
                     if (_error != null) ...[
                       Container(
                         padding: const EdgeInsets.all(KodaraSpacing.space3),
                         decoration: BoxDecoration(
-                          color: KodaraColors.errorTint,
+                          color: context.kodara.errorTint,
                           borderRadius: BorderRadius.circular(KodaraRadius.md),
                         ),
                         child: Text(
                           _error!,
-                          style: const TextStyle(color: KodaraColors.error),
+                          style: TextStyle(color: context.kodara.error),
                         ),
                       ),
                       const SizedBox(height: KodaraSpacing.space4),
