@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/table";
 import { createClient } from "@/lib/supabase/server";
 import { RevealGroup, RevealItem } from "@/components/motion/reveal";
+import { AnimatedNumber } from "@/components/motion/animated-number";
+import { Sparkline } from "@/components/data/sparkline";
 
 function nextDueDate(billingDay: number, from = new Date()) {
   const candidate = new Date(from.getFullYear(), from.getMonth(), billingDay);
@@ -177,6 +179,18 @@ export default async function TenantPortalPage({
     .order("paid_at", { ascending: false })
     .limit(8);
 
+  // Real per-tenant weekly payment trend for the balance-card sparkline.
+  const weeklyPaid = Array.from({ length: 8 }, () => 0);
+  const trendNow = new Date().getTime();
+  const trendCutoff = trendNow - 7 * 8 * 24 * 60 * 60 * 1000;
+  for (const p of payments ?? []) {
+    if (!p.reconciliation_status.startsWith("matched")) continue;
+    const paidAt = new Date(p.paid_at).getTime();
+    if (paidAt < trendCutoff) continue;
+    const weeksAgo = Math.floor((trendNow - paidAt) / (7 * 24 * 60 * 60 * 1000));
+    weeklyPaid[7 - Math.min(weeksAgo, 7)] += Number(p.amount);
+  }
+
   const { data: tickets } = await supabase
     .from("maintenance_requests")
     .select("id, title, status, created_at")
@@ -319,15 +333,27 @@ export default async function TenantPortalPage({
       <RevealItem>
       <Card className="overflow-hidden rounded-[var(--radius)] border-0 ring-0 bg-foreground text-background shadow-[var(--shadow-hero)]">
         <CardHeader className="pb-3">
-          <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.12em] text-background/50">
-            {balance > 0 ? "Balance due" : "Account status"}
-          </CardTitle>
+          <div className="flex items-start justify-between gap-3">
+            <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.12em] text-background/50">
+              {balance > 0 ? "Balance due" : "Account status"}
+            </CardTitle>
+            <Sparkline
+              points={weeklyPaid}
+              width={72}
+              height={24}
+              className="mt-0.5 shrink-0 text-[oklch(72%_0.13_166)]"
+            />
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="text-[34px] leading-none font-bold tracking-tighter tabular-nums">
-            {balance > 0 ? formatKES(balance) : "All paid up"}
+          <div className="text-[34px] leading-none font-bold tracking-tighter">
+            {balance > 0 ? (
+              <AnimatedNumber value={balance} formatType="kes" />
+            ) : (
+              "All paid up"
+            )}
           </div>
-          <p className="mt-2.5 text-[13px] text-background/60 tabular-nums">
+          <p className="mt-2.5 text-[13px] text-background/60 tabular-nums font-mono">
             Rent {formatKES(rent)} / month · due {dueLabel} · Ref{" "}
             {tenancy.payment_reference}
           </p>
@@ -460,7 +486,7 @@ export default async function TenantPortalPage({
                         dateStyle: "medium",
                       })}
                     </TableCell>
-                    <TableCell className="pr-6 text-right font-semibold tabular-nums">
+                    <TableCell className="pr-6 text-right font-semibold tabular-nums font-mono">
                       {formatKES(Number(p.amount))}
                     </TableCell>
                   </TableRow>

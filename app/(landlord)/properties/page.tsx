@@ -148,7 +148,7 @@ export default async function PropertiesPage() {
                         <Users className="h-3 w-3" />
                         Occupancy
                       </p>
-                      <p className="text-xl font-semibold tracking-tight text-foreground tabular-nums">
+                      <p className="text-xl font-semibold tracking-tight text-foreground tabular-nums font-mono">
                         {property.occupiedUnits} <span className="text-muted-foreground/60 font-medium text-sm">/ {property.totalUnits}</span>
                       </p>
                     </div>
@@ -157,10 +157,10 @@ export default async function PropertiesPage() {
                         <Wallet className="h-3 w-3" />
                         Expected
                       </p>
-                      <p className="text-xl font-semibold tracking-tight text-foreground tabular-nums">
+                      <p className="text-xl font-semibold tracking-tight text-foreground tabular-nums font-mono">
                         {formatKES(property.expectedRevenue)}
                       </p>
-                      <p className="text-[11px] text-muted-foreground mt-1 tabular-nums">
+                      <p className="text-[11px] text-muted-foreground mt-1 tabular-nums font-mono">
                         {formatKES(property.collectedRevenue)} collected
                       </p>
                     </div>

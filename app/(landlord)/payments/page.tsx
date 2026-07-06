@@ -86,7 +86,7 @@ export default async function PaymentsPage({
             <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Total Collected</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-[28px] leading-none font-bold tracking-tight text-foreground tabular-nums">{formatKES(totalCollected)}</div>
+            <div className="text-[28px] leading-none font-bold tracking-tight text-foreground tabular-nums font-mono">{formatKES(totalCollected)}</div>
             <p className="text-[13px] text-muted-foreground mt-2.5">Matched payments, all time</p>
           </CardContent>
         </Card>
@@ -95,7 +95,7 @@ export default async function PaymentsPage({
             <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-700">Unmatched Funds</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-[28px] leading-none font-bold tracking-tight text-foreground tabular-nums">{formatKES(totalUnmatched)}</div>
+            <div className="text-[28px] leading-none font-bold tracking-tight text-foreground tabular-nums font-mono">{formatKES(totalUnmatched)}</div>
             <p className="text-[13px] text-muted-foreground mt-2.5 tabular-nums">
               {unmatchedPayments.length === 1
                 ? "1 transaction needs attention"
@@ -191,7 +191,7 @@ export default async function PaymentsPage({
                         </Link>
                       )}
                     </TableCell>
-                    <TableCell className="text-right pr-6 py-4 font-semibold text-[15px] text-foreground tracking-tight tabular-nums">
+                    <TableCell className="text-right pr-6 py-4 font-semibold text-[15px] text-foreground tracking-tight tabular-nums font-mono">
                       {formatKES(payment.amount)}
                     </TableCell>
                   </TableRow>

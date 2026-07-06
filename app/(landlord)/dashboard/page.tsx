@@ -14,6 +14,8 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { Reveal, RevealGroup, RevealItem } from "@/components/motion/reveal";
+import { AnimatedNumber } from "@/components/motion/animated-number";
+import { Sparkline } from "@/components/data/sparkline";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -51,6 +53,24 @@ export default async function DashboardPage() {
     0,
   );
   const collectionRate = expectedRent > 0 ? Math.round((collectedThisMonth / expectedRent) * 100) : 0;
+
+  // 8-week collection trend for the hero sparkline — real weekly totals,
+  // not a fabricated series.
+  const trendStart = new Date(now);
+  trendStart.setDate(trendStart.getDate() - 7 * 8);
+  const { data: trendPayments } = await supabase
+    .from('payments')
+    .select('amount, paid_at')
+    .in('reconciliation_status', ['matched_auto', 'matched_manual'])
+    .gte('paid_at', trendStart.toISOString());
+
+  const weeklyTotals = Array.from({ length: 8 }, () => 0);
+  for (const p of trendPayments || []) {
+    const paidAt = new Date(p.paid_at);
+    const weeksAgo = Math.floor((now.getTime() - paidAt.getTime()) / (7 * 24 * 60 * 60 * 1000));
+    const bucket = 7 - Math.min(weeksAgo, 7);
+    weeklyTotals[bucket] += Number(p.amount);
+  }
 
   // Fetch the most recent payments for the ledger table (display only, not used for totals above)
   const { data: payments } = await supabase
@@ -91,17 +111,20 @@ export default async function DashboardPage() {
   const metrics = [
     {
       title: "Expected Rent",
-      value: formatKES(expectedRent),
+      value: expectedRent,
+      formatType: "kes" as const,
       description: "From active tenancies",
     },
     {
       title: "Arrears",
-      value: formatKES(arrears),
+      value: arrears,
+      formatType: "kes" as const,
       description: "Remaining balance",
     },
     {
       title: "Open Maintenance",
-      value: `${maintenanceCount || 0} Tickets`,
+      value: maintenanceCount || 0,
+      formatType: "tickets" as const,
       description: "Requires action",
     },
   ];
@@ -130,22 +153,30 @@ export default async function DashboardPage() {
           {/* Hero metric — the one number that matters this month */}
           <Card className="h-full overflow-hidden rounded-[var(--radius)] border-0 ring-0 bg-foreground text-background shadow-[var(--shadow-hero)]">
             <CardHeader className="pb-3">
-              <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.12em] text-background/50">
-                Collected This Month
-              </CardTitle>
+              <div className="flex items-start justify-between gap-3">
+                <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.12em] text-background/50">
+                  Collected This Month
+                </CardTitle>
+                <Sparkline
+                  points={weeklyTotals}
+                  width={72}
+                  height={24}
+                  className="mt-0.5 shrink-0 text-[oklch(72%_0.13_166)]"
+                />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-[34px] leading-none font-bold tracking-tighter tabular-nums">
-                {formatKES(collectedThisMonth)}
+              <div className="text-[34px] leading-none font-bold tracking-tighter">
+                <AnimatedNumber value={collectedThisMonth} formatType="kes" />
               </div>
               <div className="mt-4 h-1 w-full overflow-hidden rounded-full bg-background/15">
                 <div
-                  className="h-full rounded-full bg-[oklch(72%_0.13_166)]"
+                  className="h-full rounded-full bg-[oklch(72%_0.13_166)] transition-[width] duration-700 ease-[var(--ease-out)]"
                   style={{ width: `${Math.min(collectionRate, 100)}%` }}
                 />
               </div>
               <p className="text-[13px] text-background/60 mt-2.5">
-                {collectionRate}% of expected rent
+                {collectionRate}% of expected rent · 8-week trend above
               </p>
             </CardContent>
           </Card>
@@ -160,8 +191,8 @@ export default async function DashboardPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-[28px] leading-none font-bold tracking-tight text-foreground tabular-nums">
-                  {metric.value}
+                <div className="text-[28px] leading-none font-bold tracking-tight text-foreground">
+                  <AnimatedNumber value={metric.value} formatType={metric.formatType} />
                 </div>
                 <p className="text-[13px] text-muted-foreground mt-2.5">{metric.description}</p>
               </CardContent>

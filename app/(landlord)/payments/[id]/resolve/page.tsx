@@ -113,14 +113,14 @@ export default async function ResolvePaymentPage({
               </div>
               <div className="flex flex-col gap-1 text-right">
                 <span className="text-[11px] font-medium text-amber-700/60 uppercase tracking-wider">Amount</span>
-                <span className="text-xl font-bold text-amber-900 tabular-nums">{formatKES(Number(payment.amount))}</span>
+                <span className="text-xl font-bold text-amber-900 tabular-nums font-mono">{formatKES(Number(payment.amount))}</span>
               </div>
             </div>
             
             <div className="grid grid-cols-2 gap-4 text-[13px]">
               <div>
                 <span className="text-amber-700/60 block mb-1">Receipt No.</span>
-                <span className="font-medium text-amber-900">{payment.provider_transaction_id}</span>
+                <span className="font-medium text-amber-900 font-mono">{payment.provider_transaction_id}</span>
               </div>
               <div>
                 <span className="text-amber-700/60 block mb-1">Received At</span>
