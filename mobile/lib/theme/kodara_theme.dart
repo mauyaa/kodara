@@ -11,7 +11,11 @@ import 'package:flutter/material.dart';
 /// to invert in dark mode — use `context.kodara` (the theme extension) so
 /// both themes render correctly.
 
-const String kodaraFontFamily = 'PlusJakartaSans';
+const String kodaraFontFamily = 'Geist';
+// Every money figure, receipt code, and phone number sets in this — same
+// pairing as the web app (Geist Sans + Geist Mono), so tabular numerals
+// look identical on both clients.
+const String kodaraMonoFontFamily = 'GeistMono';
 
 class KodaraColors {
   const KodaraColors._();
@@ -186,7 +190,7 @@ class KodaraTypography {
 
   /// The single hero number style. At most one per screen.
   static const TextStyle heroStyle = TextStyle(
-    fontFamily: kodaraFontFamily,
+    fontFamily: kodaraMonoFontFamily,
     fontSize: hero,
     fontWeight: FontWeight.w700,
     color: Colors.white,
@@ -194,6 +198,16 @@ class KodaraTypography {
     letterSpacing: -0.5,
     fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
   );
+
+  /// Reusable style for any secondary money/receipt/reference figure —
+  /// same mono treatment as the hero, at body size.
+  static TextStyle moneyStyle(Color color, {double size = base}) => TextStyle(
+        fontFamily: kodaraMonoFontFamily,
+        fontSize: size,
+        fontWeight: FontWeight.w600,
+        color: color,
+        fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+      );
 
   /// Eyebrow label — uppercase micro-heading above a section or hero.
   static const TextStyle eyebrow = TextStyle(
