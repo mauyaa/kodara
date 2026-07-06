@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LogoutMenuItem } from "@/components/layout/logout-menu-item";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -43,6 +44,8 @@ export default async function TenantLayout({
         <Link href="/portal" className="text-foreground">
           <Logo markClassName="h-6 w-6" wordmarkClassName="text-[17px]" />
         </Link>
+        <div className="flex items-center gap-2">
+        <ThemeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger className="relative h-8 w-8 rounded-full outline-none hover:ring-2 hover:ring-border focus-visible:ring-2 focus-visible:ring-primary transition-all duration-200 ease-[var(--ease-out)]">
             <Avatar className="h-8 w-8">
@@ -64,6 +67,7 @@ export default async function TenantLayout({
             <LogoutMenuItem />
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </header>
       <main className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
         {children}

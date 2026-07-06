@@ -167,12 +167,12 @@ export default async function TenantsPage({
                     <TableCell className="text-right pr-6">
                       {arrears > 0 ? (
                         <div>
-                          <div className="text-destructive font-semibold tabular-nums">{formatKES(arrears)}</div>
+                          <div className="text-destructive font-semibold tabular-nums font-mono">{formatKES(arrears)}</div>
                           <div className="text-[10px] uppercase font-bold tracking-widest text-destructive/80 mt-0.5">In Arrears</div>
                         </div>
                       ) : (
                         <div>
-                          <div className="text-foreground font-semibold tabular-nums">{formatKES(Number(tenancy.rent_amount))} / mo</div>
+                          <div className="text-foreground font-semibold tabular-nums font-mono">{formatKES(Number(tenancy.rent_amount))} / mo</div>
                           <div className="text-[10px] uppercase font-bold tracking-widest text-primary/80 mt-0.5">Up to Date</div>
                         </div>
                       )}

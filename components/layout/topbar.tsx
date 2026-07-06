@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, Search } from "lucide-react";
+import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LogoMark } from "@/components/brand/logo";
 import { MobileNav } from "@/components/layout/sidebar";
+import { CommandPaletteTrigger } from "@/components/command/command-palette";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,17 +46,12 @@ export function Topbar({
         >
           <LogoMark className="h-6 w-6" />
         </Link>
-        <form action="/tenants" className="relative w-full max-w-sm hidden sm:flex">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <input
-            type="search"
-            name="q"
-            placeholder="Search tenants, units, phones..."
-            className="flex h-9 w-full rounded-full border-0 bg-secondary/80 px-3 py-1 text-[14px] shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] transition-all duration-200 ease-[var(--ease-out)] placeholder:text-muted-foreground focus-visible:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50 pl-9"
-          />
-        </form>
+        <div className="hidden w-full max-w-sm sm:flex">
+          <CommandPaletteTrigger />
+        </div>
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4">
+        <ThemeToggle />
         <Button variant="ghost" size="icon" className="text-muted-foreground hover:bg-secondary/50">
           <Bell className="h-4 w-4" />
           <span className="sr-only">Toggle notifications</span>

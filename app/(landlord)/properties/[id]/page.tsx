@@ -15,6 +15,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { AnimatedNumber } from "@/components/motion/animated-number";
 
 export default async function PropertyDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
@@ -137,7 +138,9 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
             <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Total Units</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-[28px] leading-none font-bold tracking-tight text-foreground tabular-nums">{totalUnits}</div>
+            <div className="text-[28px] leading-none font-bold tracking-tight text-foreground">
+              <AnimatedNumber value={totalUnits} formatType="count" />
+            </div>
           </CardContent>
         </Card>
         <Card className="premium-card">
@@ -145,7 +148,9 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
             <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Occupancy Rate</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-[28px] leading-none font-bold tracking-tight text-foreground tabular-nums">{occupancyRate}%</div>
+            <div className="text-[28px] leading-none font-bold tracking-tight text-foreground">
+              <AnimatedNumber value={occupancyRate} formatType="percent" />
+            </div>
           </CardContent>
         </Card>
         <Card className="premium-card">
@@ -153,8 +158,8 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
             <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Total Arrears</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-[28px] leading-none font-bold tracking-tight tabular-nums ${totalArrears > 0 ? "text-destructive" : "text-foreground"}`}>
-              {formatKES(totalArrears)}
+            <div className={`text-[28px] leading-none font-bold tracking-tight ${totalArrears > 0 ? "text-destructive" : "text-foreground"}`}>
+              <AnimatedNumber value={totalArrears} formatType="kes" />
             </div>
           </CardContent>
         </Card>
@@ -206,10 +211,10 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                       <span className="text-muted-foreground/60 text-[13px]">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right font-semibold tabular-nums">{formatKES(unit.rent)}</TableCell>
+                  <TableCell className="text-right font-semibold tabular-nums font-mono">{formatKES(unit.rent)}</TableCell>
                   <TableCell className="text-right pr-6">
                     {unit.arrears > 0 ? (
-                      <span className="text-destructive font-semibold tabular-nums">{formatKES(unit.arrears)}</span>
+                      <span className="text-destructive font-semibold tabular-nums font-mono">{formatKES(unit.arrears)}</span>
                     ) : (
                       <span className="text-muted-foreground/60">—</span>
                     )}
