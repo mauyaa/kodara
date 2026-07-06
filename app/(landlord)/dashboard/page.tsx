@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import { Reveal, RevealGroup, RevealItem } from "@/components/motion/reveal";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -112,58 +113,64 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="space-y-1">
+      <Reveal className="space-y-1">
         <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
           {monthLabel} · Portfolio
         </p>
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">Dashboard</h1>
+        <h1 className="text-4xl font-bold tracking-tighter text-foreground">Dashboard</h1>
         <p className="text-[15px] text-muted-foreground">
           Portfolio overview and real-time financial ledger.
         </p>
-      </div>
+      </Reveal>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {/* Hero metric — the one number that matters this month */}
-        <Card className="overflow-hidden rounded-[var(--radius)] border-0 ring-0 bg-foreground text-background shadow-[var(--shadow-elevated)]">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.12em] text-background/50">
-              Collected This Month
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-[28px] leading-none font-bold tracking-tight tabular-nums">
-              {formatKES(collectedThisMonth)}
-            </div>
-            <div className="mt-3.5 h-1 w-full overflow-hidden rounded-full bg-background/15">
-              <div
-                className="h-full rounded-full bg-[oklch(72%_0.13_166)]"
-                style={{ width: `${Math.min(collectionRate, 100)}%` }}
-              />
-            </div>
-            <p className="text-[13px] text-background/60 mt-2.5">
-              {collectionRate}% of expected rent
-            </p>
-          </CardContent>
-        </Card>
-
-        {metrics.map((metric) => (
-          <Card key={metric.title} className="premium-card overflow-hidden">
+      {/* Golden-ratio row: the hero takes ~38% of the width, the three
+          supporting metrics share the remaining ~62%. */}
+      <RevealGroup className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <RevealItem className="sm:col-span-2 xl:col-span-2">
+          {/* Hero metric — the one number that matters this month */}
+          <Card className="h-full overflow-hidden rounded-[var(--radius)] border-0 ring-0 bg-foreground text-background shadow-[var(--shadow-hero)]">
             <CardHeader className="pb-3">
-              <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                {metric.title}
+              <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.12em] text-background/50">
+                Collected This Month
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-[28px] leading-none font-bold tracking-tight text-foreground tabular-nums">
-                {metric.value}
+              <div className="text-[34px] leading-none font-bold tracking-tighter tabular-nums">
+                {formatKES(collectedThisMonth)}
               </div>
-              <p className="text-[13px] text-muted-foreground mt-2.5">{metric.description}</p>
+              <div className="mt-4 h-1 w-full overflow-hidden rounded-full bg-background/15">
+                <div
+                  className="h-full rounded-full bg-[oklch(72%_0.13_166)]"
+                  style={{ width: `${Math.min(collectionRate, 100)}%` }}
+                />
+              </div>
+              <p className="text-[13px] text-background/60 mt-2.5">
+                {collectionRate}% of expected rent
+              </p>
             </CardContent>
           </Card>
-        ))}
-      </div>
+        </RevealItem>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_350px]">
+        {metrics.map((metric) => (
+          <RevealItem key={metric.title}>
+            <Card className="premium-card h-full overflow-hidden">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  {metric.title}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-[28px] leading-none font-bold tracking-tight text-foreground tabular-nums">
+                  {metric.value}
+                </div>
+                <p className="text-[13px] text-muted-foreground mt-2.5">{metric.description}</p>
+              </CardContent>
+            </Card>
+          </RevealItem>
+        ))}
+      </RevealGroup>
+
+      <Reveal delay={0.12} className="grid gap-6 lg:grid-cols-[1fr_350px]">
         <Card className="premium-card">
           <CardHeader className="flex flex-row items-center justify-between border-b border-border/40 pb-4 mb-4">
             <div className="space-y-1">
@@ -292,7 +299,7 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </Reveal>
     </div>
   );
 }
