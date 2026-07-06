@@ -51,9 +51,9 @@ let channel;
 const checkoutRequestId = `ws_CO_RT_${run}`;
 const receipt = `RT${run.toUpperCase()}`;
 
-function timeout(label, milliseconds = 20_000) {
+function timeout(label, milliseconds = 25_000) {
   return new Promise((_, reject) =>
-    setTimeout(() => reject(new Error(`${label} timed out`)), milliseconds),
+    setTimeout(() => reject(new Error(`${label} timed out after ${milliseconds}ms`)), milliseconds),
   );
 }
 
@@ -175,6 +175,7 @@ try {
     rejectMaintenance = reject;
   });
 
+  let channelError = null;
   const subscribed = new Promise((resolve, reject) => {
     channel = authClient
       .channel(`kodara-realtime-e2e-${run}`)
@@ -210,7 +211,15 @@ try {
         console.log("Realtime channel status", status, error?.message ?? "");
         if (status === "SUBSCRIBED") resolve();
         if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-          reject(error ?? new Error(`channel ${status.toLowerCase()}`));
+          channelError = error ?? new Error(`channel ${status.toLowerCase()}`);
+          reject(channelError);
+        }
+        if (status === "CLOSED") {
+          if (!channelError) {
+            channelError = new Error("Realtime channel closed unexpectedly before events received");
+            rejectPayment(channelError);
+            rejectMaintenance(channelError);
+          }
         }
       });
   });
@@ -218,7 +227,7 @@ try {
   await Promise.race([subscribed, timeout("Realtime subscription")]);
   // The local Realtime gateway can report SUBSCRIBED just before its CDC
   // subscription transaction is visible to the replication worker.
-  await delay(1_000);
+  await delay(2_000);
 
   const attemptId = crypto.randomUUID();
   const { error: attemptError } = await admin.from("payment_attempts").insert({
