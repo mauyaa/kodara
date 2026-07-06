@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/models.dart';
 import '../providers/providers.dart';
+import '../providers/theme_provider.dart';
 import '../services/api_exception.dart';
 import '../theme/kodara_theme.dart';
 import '../widgets/async_state_view.dart';
@@ -744,7 +745,11 @@ class _AccountTab extends ConsumerWidget {
           value: tenancy.propertyAddress ?? '—',
         ),
         const _HairLine(),
-        _DetailRow(label: 'Monthly rent', value: formatKes(tenancy.rentAmount)),
+        _DetailRow(
+          label: 'Monthly rent',
+          value: formatKes(tenancy.rentAmount),
+          mono: true,
+        ),
         const _HairLine(),
         _DetailRow(label: 'Rent due', value: 'Day ${tenancy.billingDay}'),
         const _HairLine(),
@@ -768,7 +773,10 @@ class _AccountTab extends ConsumerWidget {
                       const SizedBox(height: KodaraSpacing.space1),
                       Text(
                         tenancy.paymentReference,
-                        style: Theme.of(context).textTheme.labelLarge,
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelLarge
+                            ?.copyWith(fontFamily: kodaraMonoFontFamily),
                       ),
                     ],
                   ),
@@ -779,6 +787,10 @@ class _AccountTab extends ConsumerWidget {
             ),
           ),
         ),
+        const SizedBox(height: KodaraSpacing.space6),
+        const _Eyebrow('APPEARANCE'),
+        const SizedBox(height: KodaraSpacing.space3),
+        const _ThemeModeSwitcher(),
         const SizedBox(height: KodaraSpacing.space8),
         Center(
           child: TextButton.icon(
@@ -846,6 +858,81 @@ class _StatRow extends StatelessWidget {
         ),
         Expanded(child: stat(rightLabel, rightValue)),
       ],
+    );
+  }
+}
+
+/// Three-way light/dark/system control, persisted — mirrors the toggle in
+/// the web app's topbar so both clients respect the same user choice.
+class _ThemeModeSwitcher extends ConsumerWidget {
+  const _ThemeModeSwitcher();
+
+  static const _options = [
+    (ThemeMode.light, Icons.light_mode_outlined, 'Light'),
+    (ThemeMode.system, Icons.smartphone_rounded, 'System'),
+    (ThemeMode.dark, Icons.dark_mode_outlined, 'Dark'),
+  ];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final current = ref.watch(themeModeProvider);
+    final kodara = context.kodara;
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: kodara.background,
+        borderRadius: BorderRadius.circular(KodaraRadius.full),
+        border: Border.all(color: kodara.border),
+      ),
+      child: Row(
+        children: [
+          for (final (mode, icon, label) in _options)
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  ref.read(themeModeProvider.notifier).setMode(mode);
+                },
+                child: AnimatedContainer(
+                  duration: KodaraMotion.base,
+                  curve: KodaraMotion.easeStandard,
+                  padding:
+                      const EdgeInsets.symmetric(vertical: KodaraSpacing.space2),
+                  decoration: BoxDecoration(
+                    color: current == mode ? kodara.surface : Colors.transparent,
+                    borderRadius: BorderRadius.circular(KodaraRadius.full),
+                    boxShadow: current == mode ? KodaraShadows.card : null,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        icon,
+                        size: 18,
+                        color: current == mode
+                            ? kodara.accent
+                            : kodara.textSecondary,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: KodaraTypography.xs,
+                          fontWeight:
+                              current == mode ? FontWeight.w700 : FontWeight.w500,
+                          color: current == mode
+                              ? kodara.accent
+                              : kodara.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -980,10 +1067,15 @@ class _RepairRow extends StatelessWidget {
 }
 
 class _DetailRow extends StatelessWidget {
-  const _DetailRow({required this.label, required this.value});
+  const _DetailRow({
+    required this.label,
+    required this.value,
+    this.mono = false,
+  });
 
   final String label;
   final String value;
+  final bool mono;
 
   @override
   Widget build(BuildContext context) {
@@ -1003,7 +1095,9 @@ class _DetailRow extends StatelessWidget {
             child: Text(
               value,
               textAlign: TextAlign.end,
-              style: Theme.of(context).textTheme.labelLarge,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    fontFamily: mono ? kodaraMonoFontFamily : null,
+                  ),
             ),
           ),
         ],

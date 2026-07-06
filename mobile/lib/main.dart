@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config.dart';
 import 'providers/providers.dart';
+import 'providers/theme_provider.dart';
 import 'screens/auth_screen.dart';
 import 'screens/home_screen.dart';
 import 'theme/kodara_theme.dart';
@@ -25,12 +26,13 @@ class KodaraApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
     return MaterialApp(
       title: 'Kodara',
       debugShowCheckedModeBanner: false,
       theme: buildKodaraTheme(),
       darkTheme: buildKodaraDarkTheme(),
-      themeMode: ThemeMode.system,
+      themeMode: themeMode,
       home: isSupabaseConfigured
           ? const _AuthGate()
           : const Scaffold(body: NotConfiguredNotice()),
