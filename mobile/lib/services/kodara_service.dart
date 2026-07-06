@@ -152,26 +152,49 @@ class KodaraService {
         );
       });
 
+  Future<PaymentAttempt?> fetchAttempt(String attemptId) => _guard(() async {
+        final row = await _client
+            .from('payment_attempts')
+            .select()
+            .eq('id', attemptId)
+            .maybeSingle();
+        if (row == null) return null;
+        return PaymentAttempt.fromJson(row);
+      });
+
   /// Live updates for one payment attempt so the pay sheet can move from
   /// "confirm on your phone" to success/failure the moment the webhook lands.
-  Stream<PaymentAttempt?> watchAttempt(String attemptId) => _client
-      .from('payment_attempts')
-      .stream(primaryKey: ['id'])
-      .eq('id', attemptId)
-      .map((rows) => rows.isEmpty
-          ? null
-          : PaymentAttempt.fromJson(Map<String, dynamic>.from(rows.first)));
+  ///
+  /// Seeds with a plain REST fetch before chaining the realtime stream: the
+  /// Realtime channel handshake against the local Supabase stack can take
+  /// 10+ seconds to subscribe, and `.stream()` withholds its first emission
+  /// until that handshake completes, which otherwise leaves the UI stuck on
+  /// a loading state far longer than the fetch itself ever takes.
+  Stream<PaymentAttempt?> watchAttempt(String attemptId) async* {
+    yield await fetchAttempt(attemptId);
+    yield* _client
+        .from('payment_attempts')
+        .stream(primaryKey: ['id'])
+        .eq('id', attemptId)
+        .map((rows) => rows.isEmpty
+            ? null
+            : PaymentAttempt.fromJson(Map<String, dynamic>.from(rows.first)));
+  }
 
   /// Live updates to the tenancy's confirmed payments (drives the balance
-  /// refresh without polling).
-  Stream<List<Payment>> watchPayments(String tenancyId) => _client
-      .from('payments')
-      .stream(primaryKey: ['id'])
-      .eq('tenancy_id', tenancyId)
-      .map((rows) => rows
-          .map((r) => Payment.fromJson(Map<String, dynamic>.from(r)))
-          .toList()
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+  /// refresh without polling). See [watchAttempt] for why this seeds with a
+  /// REST fetch first.
+  Stream<List<Payment>> watchPayments(String tenancyId) async* {
+    yield await fetchPayments(tenancyId);
+    yield* _client
+        .from('payments')
+        .stream(primaryKey: ['id'])
+        .eq('tenancy_id', tenancyId)
+        .map((rows) => rows
+            .map((r) => Payment.fromJson(Map<String, dynamic>.from(r)))
+            .toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+  }
 
   // ---- Maintenance ---------------------------------------------------------
 
@@ -186,15 +209,19 @@ class KodaraService {
       });
 
   /// Live maintenance status updates (kodara.md DoD #6: tenant sees each
-  /// status change in real time).
-  Stream<List<MaintenanceRequest>> watchMaintenance(String tenancyId) => _client
-      .from('maintenance_requests')
-      .stream(primaryKey: ['id'])
-      .eq('tenancy_id', tenancyId)
-      .map((rows) => rows
-          .map((r) => MaintenanceRequest.fromJson(Map<String, dynamic>.from(r)))
-          .toList()
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+  /// status change in real time). See [watchAttempt] for why this seeds
+  /// with a REST fetch first.
+  Stream<List<MaintenanceRequest>> watchMaintenance(String tenancyId) async* {
+    yield await fetchMaintenance(tenancyId);
+    yield* _client
+        .from('maintenance_requests')
+        .stream(primaryKey: ['id'])
+        .eq('tenancy_id', tenancyId)
+        .map((rows) => rows
+            .map((r) => MaintenanceRequest.fromJson(Map<String, dynamic>.from(r)))
+            .toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+  }
 
   /// Uploads photos first, then creates the request referencing their paths.
   /// If the insert fails the uploaded objects are orphaned in the tenant's

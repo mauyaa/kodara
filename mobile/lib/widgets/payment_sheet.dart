@@ -205,7 +205,7 @@ class _PaymentSheetState extends ConsumerState<PaymentSheet> {
     // Fires exactly once on the succeeded/failed transition (ref.listen only
     // triggers on a new value, never on every rebuild) — the haptic moment
     // fintech apps use to confirm money moved before the eye catches up.
-    ref.listen<AsyncValue<PaymentAttempt>>(
+    ref.listen<AsyncValue<PaymentAttempt?>>(
       attemptStreamProvider(_attemptId!),
       (previous, next) {
         final attempt = next.valueOrNull;
