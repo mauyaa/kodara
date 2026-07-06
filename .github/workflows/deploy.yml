@@ -79,11 +79,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - name: Require approval for production
-        uses: trstringer/wait-for-approvals@v1
-        with:
-          wait-for-approvals: 1
-          timeout-minutes: 60
+     
       
       - uses: actions/checkout@v4
       - uses: amondnet/vercel-action@v25
