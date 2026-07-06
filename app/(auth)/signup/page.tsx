@@ -9,7 +9,7 @@ export default async function SignupPage(props: { searchParams: Promise<{ error?
   const searchParams = await props.searchParams;
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 ease-[var(--ease-out)]">
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight text-foreground">Create an account</h1>
         <p className="mt-2 text-sm text-muted-foreground">

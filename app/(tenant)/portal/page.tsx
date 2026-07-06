@@ -20,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { createClient } from "@/lib/supabase/server";
+import { RevealGroup, RevealItem } from "@/components/motion/reveal";
 
 function nextDueDate(billingDay: number, from = new Date()) {
   const candidate = new Date(from.getFullYear(), from.getMonth(), billingDay);
@@ -256,8 +257,8 @@ export default async function TenantPortalPage({
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="space-y-1">
+    <RevealGroup className="flex flex-col gap-6">
+      <RevealItem className="space-y-1">
         <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
           {property?.name ?? "Your home"} · Unit {unit?.name ?? ""}
         </p>
@@ -267,7 +268,7 @@ export default async function TenantPortalPage({
         <p className="text-[15px] text-muted-foreground">
           Your rent, receipts, and repairs in one place.
         </p>
-      </div>
+      </RevealItem>
 
       {/* Reminder — the in-app nudge */}
       {balance > 0 && (
@@ -315,14 +316,15 @@ export default async function TenantPortalPage({
       )}
 
       {/* Balance hero */}
-      <Card className="overflow-hidden rounded-[var(--radius)] border-0 ring-0 bg-foreground text-background shadow-[var(--shadow-elevated)]">
+      <RevealItem>
+      <Card className="overflow-hidden rounded-[var(--radius)] border-0 ring-0 bg-foreground text-background shadow-[var(--shadow-hero)]">
         <CardHeader className="pb-3">
           <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.12em] text-background/50">
             {balance > 0 ? "Balance due" : "Account status"}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-[32px] leading-none font-bold tracking-tight tabular-nums">
+          <div className="text-[34px] leading-none font-bold tracking-tighter tabular-nums">
             {balance > 0 ? formatKES(balance) : "All paid up"}
           </div>
           <p className="mt-2.5 text-[13px] text-background/60 tabular-nums">
@@ -331,8 +333,10 @@ export default async function TenantPortalPage({
           </p>
         </CardContent>
       </Card>
+      </RevealItem>
 
       {/* Pay */}
+      <RevealItem>
       <Card className="premium-card">
         <CardHeader>
           <CardTitle className="text-base font-semibold">Pay with M-Pesa</CardTitle>
@@ -386,6 +390,7 @@ export default async function TenantPortalPage({
           </form>
         </CardContent>
       </Card>
+      </RevealItem>
 
       {/* Reminders feed */}
       {(reminders ?? []).length > 0 && (
@@ -417,6 +422,7 @@ export default async function TenantPortalPage({
       )}
 
       {/* History */}
+      <RevealItem>
       <Card className="premium-card overflow-hidden">
         <CardHeader className="border-b border-border/40 pb-4">
           <CardTitle className="text-base font-semibold">Payment history</CardTitle>
@@ -464,8 +470,10 @@ export default async function TenantPortalPage({
           </Table>
         </CardContent>
       </Card>
+      </RevealItem>
 
       {/* Maintenance */}
+      <RevealItem>
       <Card className="premium-card">
         <CardHeader>
           <CardTitle className="text-base font-semibold">Repairs & maintenance</CardTitle>
@@ -570,6 +578,7 @@ export default async function TenantPortalPage({
           </details>
         </CardContent>
       </Card>
-    </div>
+      </RevealItem>
+    </RevealGroup>
   );
 }
