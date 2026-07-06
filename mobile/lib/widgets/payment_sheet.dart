@@ -202,6 +202,23 @@ class _PaymentSheetState extends ConsumerState<PaymentSheet> {
   }
 
   Widget _buildProgress(BuildContext context) {
+    // Fires exactly once on the succeeded/failed transition (ref.listen only
+    // triggers on a new value, never on every rebuild) — the haptic moment
+    // fintech apps use to confirm money moved before the eye catches up.
+    ref.listen<AsyncValue<PaymentAttempt>>(
+      attemptStreamProvider(_attemptId!),
+      (previous, next) {
+        final attempt = next.valueOrNull;
+        if (attempt == null || !attempt.isTerminal) return;
+        if (previous?.valueOrNull?.status == attempt.status) return;
+        if (attempt.status == 'succeeded') {
+          HapticFeedback.mediumImpact();
+        } else {
+          HapticFeedback.heavyImpact();
+        }
+      },
+    );
+
     final attemptAsync = ref.watch(attemptStreamProvider(_attemptId!));
     final attempt = attemptAsync.valueOrNull;
 
