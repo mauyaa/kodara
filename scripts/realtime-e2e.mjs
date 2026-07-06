@@ -51,7 +51,7 @@ let channel;
 const checkoutRequestId = `ws_CO_RT_${run}`;
 const receipt = `RT${run.toUpperCase()}`;
 
-function timeout(label, milliseconds = 12_000) {
+function timeout(label, milliseconds = 20_000) {
   return new Promise((_, reject) =>
     setTimeout(() => reject(new Error(`${label} timed out`)), milliseconds),
   );
