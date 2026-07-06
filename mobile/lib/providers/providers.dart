@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -32,8 +33,19 @@ final pendingInvitationsProvider = FutureProvider<List<TenantInvitation>>(
 
 final balanceProvider =
     FutureProvider.family<TenancyBalance?, String>((ref, tenancyId) {
-  // Recompute whenever the payment stream emits (webhook landed).
-  ref.watch(paymentsStreamProvider(tenancyId));
+  // Recompute when a payment actually lands (webhook landed), but only on a
+  // real change to the set of payment ids — using ref.watch here instead
+  // would reset this provider to loading on every emission from the payment
+  // stream, including the harmless duplicate the realtime channel replays a
+  // few seconds after its initial value, which left the balance stuck
+  // re-loading indefinitely instead of ever settling.
+  ref.listen(paymentsStreamProvider(tenancyId), (previous, next) {
+    final previousIds = previous?.valueOrNull?.map((p) => p.id).toSet();
+    final nextIds = next.valueOrNull?.map((p) => p.id).toSet();
+    if (previousIds != null && nextIds != null && !setEquals(previousIds, nextIds)) {
+      ref.invalidateSelf();
+    }
+  });
   return ref.watch(kodaraServiceProvider).fetchBalance(tenancyId);
 });
 
