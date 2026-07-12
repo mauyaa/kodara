@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(45);
+select plan(48);
 
 -- Fixed identities keep failures readable.
 insert into auth.users (id, email) values
@@ -473,6 +473,36 @@ select ok(
   (select count(*)::integer from public.notifications where profile_id = '10000000-0000-4000-8000-000000000001' and type = 'payment_received') >= 1,
   'a matched payment notifies the owning landlord'
 );
+
+-- Manual payments: the default, credential-free way for a landlord to
+-- record rent collected outside M-Pesa (cash, bank transfer, personal
+-- till) -- no Daraja connection required.
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true);
+
+select is(
+  (select (public.record_manual_payment(
+    '50000000-0000-4000-8000-000000000001', 5000, current_date, 'partial payment'
+  )).reconciliation_status),
+  'matched_manual',
+  'a landlord can record a manual payment against their own tenancy'
+);
+
+select throws_ok(
+  $$select public.record_manual_payment('50000000-0000-4000-8000-000000000002', 5000, current_date, null)$$,
+  '42501',
+  'tenancy is not owned by caller',
+  'a landlord cannot record a manual payment against another landlord''s tenancy'
+);
+
+select is(
+  (select count(*)::integer from public.notifications where profile_id = '10000000-0000-4000-8000-000000000001' and type = 'payment_received'),
+  3,
+  'a manual payment does not notify the landlord about their own entry'
+);
+
+reset role;
 
 -- End-of-tenancy: the owning landlord can end an active tenancy, and doing
 -- so frees the unit for a new one (partial unique index no longer blocks it).
