@@ -21,10 +21,33 @@ final currentUserProvider = Provider<User?>((ref) {
   return ref.watch(supabaseClientProvider).auth.currentUser;
 });
 
-/// The tenant's active tenancy, or null when they have none yet.
-final activeTenancyProvider = FutureProvider<Tenancy?>((ref) {
+/// Every unit the signed-in tenant currently rents (usually one, but the
+/// data model allows more).
+final activeTenanciesProvider = FutureProvider<List<Tenancy>>((ref) {
   ref.watch(currentUserProvider);
-  return ref.watch(kodaraServiceProvider).fetchActiveTenancy();
+  return ref.watch(kodaraServiceProvider).fetchActiveTenancies();
+});
+
+/// Which tenancy is currently shown in the UI. Null means "no explicit
+/// choice yet" -- [activeTenancyProvider] then defaults to the first one.
+final selectedTenancyIdProvider = StateProvider<String?>((ref) => null);
+
+/// The tenant's current active tenancy, resolved against
+/// [selectedTenancyIdProvider]. Kept as a single value (rather than exposing
+/// the list everywhere) so screens that only ever cared about "the" active
+/// tenancy don't need to change -- a unit switcher only needs to appear
+/// where multiple tenancies actually exist.
+final activeTenancyProvider = Provider<AsyncValue<Tenancy?>>((ref) {
+  final tenanciesAsync = ref.watch(activeTenanciesProvider);
+  final selectedId = ref.watch(selectedTenancyIdProvider);
+  return tenanciesAsync.whenData((tenancies) {
+    if (tenancies.isEmpty) return null;
+    if (selectedId == null) return tenancies.first;
+    return tenancies.firstWhere(
+      (t) => t.id == selectedId,
+      orElse: () => tenancies.first,
+    );
+  });
 });
 
 /// Pending invitations for tenants who have no active tenancy yet.
@@ -63,3 +86,7 @@ final maintenanceStreamProvider =
 final attemptStreamProvider = StreamProvider.family<PaymentAttempt?, String>(
     (ref, attemptId) =>
         ref.watch(kodaraServiceProvider).watchAttempt(attemptId));
+
+/// Realtime conversation with the landlord for one tenancy.
+final messagesStreamProvider = StreamProvider.family<List<ChatMessage>, String>(
+    (ref, tenancyId) => ref.watch(kodaraServiceProvider).watchMessages(tenancyId));

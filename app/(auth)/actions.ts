@@ -30,6 +30,11 @@ export async function login(formData: FormData) {
   redirect(profile?.role === 'tenant' ? '/portal' : '/dashboard')
 }
 
+// Web signup is landlord-only. Tenants can never complete
+// accept_tenant_invitation without a Supabase-verified phone, which this
+// email/password form never collects — the Flutter app's phone+OTP flow is
+// the only real tenant onboarding path (see accept_tenant_invitation in
+// supabase/migrations/20260701000000_core_schema.sql).
 export async function signup(formData: FormData) {
   const supabase = await createClient()
 
@@ -37,7 +42,6 @@ export async function signup(formData: FormData) {
   const password = formData.get('password') as string
   const confirmPassword = formData.get('confirm_password') as string
   const fullName = (formData.get('full_name') as string)?.trim()
-  const accountType = formData.get('account_type') === 'tenant' ? 'tenant' : 'landlord'
 
   if (password !== confirmPassword) {
     redirect('/signup?error=' + encodeURIComponent('Passwords do not match'))
@@ -57,17 +61,13 @@ export async function signup(formData: FormData) {
     redirect('/signup?error=' + encodeURIComponent(signUpError.message))
   }
 
-  // Profiles default to the tenant role; only landlords need the upgrade.
-  if (accountType === 'landlord') {
-    const { error: landlordError } = await supabase.rpc('register_as_landlord')
-
-    if (landlordError) {
-      redirect('/signup?error=' + encodeURIComponent(landlordError.message))
-    }
+  const { error: landlordError } = await supabase.rpc('register_as_landlord')
+  if (landlordError) {
+    redirect('/signup?error=' + encodeURIComponent(landlordError.message))
   }
 
   revalidatePath('/', 'layout')
-  redirect(accountType === 'tenant' ? '/portal' : '/dashboard')
+  redirect('/onboarding')
 }
 
 export async function logout() {

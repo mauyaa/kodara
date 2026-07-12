@@ -40,7 +40,7 @@ export async function updateSession(request: NextRequest) {
   // Protect all landlord routes. If there is no user and the route is not an auth route, redirect to login.
   // We assume the root `/` redirects to dashboard. The dashboard itself is under `/(landlord)/dashboard`.
   // Because route groups don't show up in pathname, we check the actual path.
-  const protectedRoutes = ['/dashboard', '/properties', '/tenants', '/payments', '/maintenance', '/settings']
+  const protectedRoutes = ['/dashboard', '/properties', '/tenants', '/payments', '/maintenance', '/settings', '/messages', '/onboarding']
   const isProtectedRoute = protectedRoutes.some((route) => request.nextUrl.pathname.startsWith(route)) || request.nextUrl.pathname === '/'
 
   if (!user && isProtectedRoute) {

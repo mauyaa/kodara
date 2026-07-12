@@ -32,7 +32,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <div className="premium-card p-8 sm:p-10">{children}</div>
 
           <p className="mt-8 text-center text-[12px] text-muted-foreground/70">
-            Payments secured by M-Pesa · Data protected with row-level security
+            Payments secured by M-Pesa · Data protected with row-level security ·{" "}
+            <Link href="/privacy" className="underline underline-offset-2 hover:text-muted-foreground">
+              Privacy policy
+            </Link>
           </p>
         </div>
       </div>

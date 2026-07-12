@@ -31,6 +31,10 @@ export default async function PaymentsPage({
       provider_transaction_id,
       created_at,
       sender_phone,
+      tax_invoices (
+        status,
+        kra_invoice_number
+      ),
       tenancies (
         profiles (
           full_name
@@ -137,13 +141,14 @@ export default async function PaymentsPage({
                 <TableHead>Payer Details</TableHead>
                 <TableHead>Allocation</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Tax Invoice</TableHead>
                 <TableHead className="text-right pr-6">Amount</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {(!payments || payments.length === 0) ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-12 text-[13px] text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-12 text-[13px] text-muted-foreground">
                     {filter === "unmatched"
                       ? "Every payment is matched to a tenancy. Nothing to resolve."
                       : "Payments appear here in real time as tenants pay via M-Pesa."}
@@ -154,6 +159,7 @@ export default async function PaymentsPage({
                 const profile = tenancy?.profiles;
                 const unit = tenancy?.units;
                 const unitProperty = unit && Array.isArray(unit.properties) ? unit.properties[0] : unit?.properties;
+                const taxInvoice = Array.isArray(payment.tax_invoices) ? payment.tax_invoices[0] : payment.tax_invoices;
 
                 return (
                   <TableRow key={payment.id} className="cursor-pointer hover:bg-secondary/30 transition-colors">
@@ -189,6 +195,27 @@ export default async function PaymentsPage({
                             Match Now
                           </Button>
                         </Link>
+                      )}
+                    </TableCell>
+                    <TableCell className="py-4">
+                      {!taxInvoice ? (
+                        <span className="text-muted-foreground/50">—</span>
+                      ) : taxInvoice.status === "submitted" ? (
+                        <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[10px] uppercase tracking-wider font-semibold">
+                          Filed
+                        </Badge>
+                      ) : taxInvoice.status === "pending" ? (
+                        <Badge variant="outline" className="bg-amber-500/10 text-amber-700 border-amber-500/20 text-[10px] uppercase tracking-wider font-semibold">
+                          Pending
+                        </Badge>
+                      ) : taxInvoice.status === "failed" ? (
+                        <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] uppercase tracking-wider font-semibold">
+                          Failed
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-muted text-muted-foreground border-border text-[10px] uppercase tracking-wider font-semibold">
+                          Not connected
+                        </Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-right pr-6 py-4 font-semibold text-[15px] text-foreground tracking-tight tabular-nums font-mono">
