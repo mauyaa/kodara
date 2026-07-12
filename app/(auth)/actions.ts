@@ -26,8 +26,26 @@ export async function login(formData: FormData) {
     .eq('id', signInData.user.id)
     .single()
 
+  let role = profile?.role
+  let justPromoted = false
+
+  // Self-heals the case where signup()'s register_as_landlord() call never
+  // ran because email confirmation was still pending at signup time (see
+  // signup() below) -- the RPC itself rejects real tenants with tenancy
+  // history, so this is a no-op for genuine tenant logins.
+  if (role === 'tenant') {
+    const { data: promoted } = await supabase.rpc('register_as_landlord')
+    if (promoted) {
+      role = promoted.role
+      justPromoted = true
+    }
+  }
+
   revalidatePath('/', 'layout')
-  redirect(profile?.role === 'tenant' ? '/portal' : '/dashboard')
+  if (justPromoted) {
+    redirect('/onboarding')
+  }
+  redirect(role === 'tenant' ? '/portal' : '/dashboard')
 }
 
 // Web signup is landlord-only. Tenants can never complete
@@ -51,7 +69,7 @@ export async function signup(formData: FormData) {
     redirect('/signup?error=' + encodeURIComponent('Full name is required'))
   }
 
-  const { error: signUpError } = await supabase.auth.signUp({
+  const { error: signUpError, data: signUpData } = await supabase.auth.signUp({
     email,
     password,
     options: { data: { full_name: fullName } },
@@ -59,6 +77,17 @@ export async function signup(formData: FormData) {
 
   if (signUpError) {
     redirect('/signup?error=' + encodeURIComponent(signUpError.message))
+  }
+
+  // If the project requires email confirmation, signUp succeeds but returns
+  // no session -- register_as_landlord() needs an authenticated caller, so
+  // defer the promotion to the first login instead (see login()'s
+  // self-healing promotion above).
+  if (!signUpData.session) {
+    redirect(
+      '/login?message=' +
+        encodeURIComponent('Account created. Check your email to confirm it, then sign in below.'),
+    )
   }
 
   const { error: landlordError } = await supabase.rpc('register_as_landlord')
