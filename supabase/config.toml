@@ -392,6 +392,27 @@ deno_version = 2
 [functions.mpesa-stk-push]
 verify_jwt = true
 
+[functions.mpesa-test-connection]
+verify_jwt = true
+
+[functions.etims-submit]
+# KRA cannot send a Supabase JWT; same shared-token pattern as rent-reminders.
+verify_jwt = false
+
+[functions.kodara-subscription-stk-push]
+verify_jwt = true
+
+[functions.kodara-subscription-mpesa-callback]
+# Safaricom cannot send a Supabase JWT; token-authenticated like mpesa-callback.
+verify_jwt = false
+
+[functions.paystack-initialize]
+verify_jwt = true
+
+[functions.paystack-webhook]
+# Paystack cannot send a Supabase JWT; HMAC-signature-authenticated instead.
+verify_jwt = false
+
 [functions.mpesa-callback]
 # Safaricom cannot send a Supabase JWT. The function authenticates requests
 # with a high-entropy callback token embedded in the configured callback URL.

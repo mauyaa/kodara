@@ -137,6 +137,81 @@ export type Database = {
           },
         ]
       }
+      message_threads: {
+        Row: {
+          created_at: string
+          id: string
+          tenancy_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          tenancy_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          tenancy_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_threads_tenancy_id_fkey"
+            columns: ["tenancy_id"]
+            isOneToOne: true
+            referencedRelation: "tenancies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_threads_tenancy_id_fkey"
+            columns: ["tenancy_id"]
+            isOneToOne: true
+            referencedRelation: "tenancy_balances"
+            referencedColumns: ["tenancy_id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          read_at: string | null
+          sender_id: string
+          thread_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          sender_id: string
+          thread_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          sender_id?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "message_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string
@@ -145,6 +220,7 @@ export type Database = {
           id: string
           profile_id: string
           read_at: string | null
+          sms_phone: string | null
           sms_status: string
           tenancy_id: string | null
           title: string
@@ -157,6 +233,7 @@ export type Database = {
           id?: string
           profile_id: string
           read_at?: string | null
+          sms_phone?: string | null
           sms_status?: string
           tenancy_id?: string | null
           title: string
@@ -169,6 +246,7 @@ export type Database = {
           id?: string
           profile_id?: string
           read_at?: string | null
+          sms_phone?: string | null
           sms_status?: string
           tenancy_id?: string | null
           title?: string
@@ -437,6 +515,39 @@ export type Database = {
           },
         ]
       }
+      plans: {
+        Row: {
+          created_at: string
+          features: Json
+          id: string
+          is_active: boolean
+          max_properties: number | null
+          max_units: number | null
+          name: string
+          price_kes_monthly: number
+        }
+        Insert: {
+          created_at?: string
+          features?: Json
+          id?: string
+          is_active?: boolean
+          max_properties?: number | null
+          max_units?: number | null
+          name: string
+          price_kes_monthly: number
+        }
+        Update: {
+          created_at?: string
+          features?: Json
+          id?: string
+          is_active?: boolean
+          max_properties?: number | null
+          max_units?: number | null
+          name?: string
+          price_kes_monthly?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -499,6 +610,191 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_payments: {
+        Row: {
+          amount: number
+          checkout_request_id: string | null
+          created_at: string
+          id: string
+          idempotency_key: string | null
+          landlord_id: string
+          method: string
+          paid_at: string | null
+          provider_reference: string | null
+          status: string
+          subscription_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          checkout_request_id?: string | null
+          created_at?: string
+          id?: string
+          idempotency_key?: string | null
+          landlord_id: string
+          method: string
+          paid_at?: string | null
+          provider_reference?: string | null
+          status?: string
+          subscription_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          checkout_request_id?: string | null
+          created_at?: string
+          id?: string
+          idempotency_key?: string | null
+          landlord_id?: string
+          method?: string
+          paid_at?: string | null
+          provider_reference?: string | null
+          status?: string
+          subscription_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_payments_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_payments_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscriptions: {
+        Row: {
+          created_at: string
+          current_period_end: string | null
+          id: string
+          landlord_id: string
+          plan_id: string
+          status: string
+          trial_ends_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          landlord_id: string
+          plan_id: string
+          status?: string
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          landlord_id?: string
+          plan_id?: string
+          status?: string
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_invoices: {
+        Row: {
+          control_unit_invoice_number: string | null
+          created_at: string
+          error: string | null
+          id: string
+          kra_invoice_number: string | null
+          landlord_id: string
+          payment_id: string
+          qr_code_url: string | null
+          retry_count: number
+          status: string
+          submitted_at: string | null
+          tenancy_id: string
+          updated_at: string
+        }
+        Insert: {
+          control_unit_invoice_number?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          kra_invoice_number?: string | null
+          landlord_id: string
+          payment_id: string
+          qr_code_url?: string | null
+          retry_count?: number
+          status?: string
+          submitted_at?: string | null
+          tenancy_id: string
+          updated_at?: string
+        }
+        Update: {
+          control_unit_invoice_number?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          kra_invoice_number?: string | null
+          landlord_id?: string
+          payment_id?: string
+          qr_code_url?: string | null
+          retry_count?: number
+          status?: string
+          submitted_at?: string | null
+          tenancy_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_invoices_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_invoices_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: true
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_invoices_tenancy_id_fkey"
+            columns: ["tenancy_id"]
+            isOneToOne: false
+            referencedRelation: "tenancies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_invoices_tenancy_id_fkey"
+            columns: ["tenancy_id"]
+            isOneToOne: false
+            referencedRelation: "tenancy_balances"
+            referencedColumns: ["tenancy_id"]
           },
         ]
       }
@@ -773,6 +1069,104 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      disconnect_landlord_etims: { Args: never; Returns: undefined }
+      disconnect_landlord_mpesa: { Args: never; Returns: undefined }
+      end_tenancy: {
+        Args: {
+          note?: string
+          target_end_date: string
+          target_tenancy_id: string
+        }
+        Returns: {
+          billing_day: number
+          created_at: string
+          end_date: string | null
+          id: string
+          payment_reference: string
+          rent_amount: number
+          start_date: string
+          status: string
+          tenant_id: string
+          unit_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tenancies"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fetch_pending_tax_invoices: {
+        Args: never
+        Returns: {
+          amount: number
+          id: string
+          landlord_id: string
+          paid_at: string
+          payment_id: string
+          payment_reference: string
+          retry_count: number
+        }[]
+      }
+      get_landlord_etims_credentials: {
+        Args: { target_landlord_id: string }
+        Returns: {
+          cu_serial: string
+          cu_type: string
+          environment: string
+          kra_pin: string
+        }[]
+      }
+      get_landlord_mpesa_credentials: {
+        Args: { target_landlord_id: string }
+        Returns: {
+          consumer_key: string
+          consumer_secret: string
+          environment: string
+          passkey: string
+          shortcode: string
+        }[]
+      }
+      landlord_etims_connection_status: {
+        Args: never
+        Returns: {
+          connected: boolean
+          cu_type: string
+          environment: string
+          kra_pin: string
+          verified_at: string
+        }[]
+      }
+      landlord_mpesa_connection_status: {
+        Args: never
+        Returns: {
+          connected: boolean
+          environment: string
+          masked_shortcode: string
+          verified_at: string
+        }[]
+      }
+      landlord_subscription_status: {
+        Args: never
+        Returns: {
+          current_period_end: string
+          max_properties: number
+          plan_name: string
+          price_kes_monthly: number
+          properties_used: number
+          status: string
+          trial_ends_at: string
+        }[]
+      }
+      mark_landlord_etims_verified: {
+        Args: { target_landlord_id: string }
+        Returns: undefined
+      }
+      mark_landlord_mpesa_verified: {
+        Args: { target_landlord_id: string }
+        Returns: undefined
+      }
       record_mpesa_stk_callback: {
         Args: {
           callback_amount: number
@@ -785,6 +1179,18 @@ export type Database = {
           callback_result_description: string
         }
         Returns: string
+      }
+      record_subscription_payment_failure: {
+        Args: { target_payment_id: string }
+        Returns: undefined
+      }
+      record_subscription_payment_success: {
+        Args: {
+          target_paid_at: string
+          target_payment_id: string
+          target_provider_reference: string
+        }
+        Returns: undefined
       }
       register_as_landlord: {
         Args: never
@@ -799,6 +1205,33 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "profiles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      reserve_subscription_payment: {
+        Args: {
+          target_amount: number
+          target_idempotency_key: string
+          target_method: string
+        }
+        Returns: {
+          amount: number
+          checkout_request_id: string | null
+          created_at: string
+          id: string
+          idempotency_key: string | null
+          landlord_id: string
+          method: string
+          paid_at: string | null
+          provider_reference: string | null
+          status: string
+          subscription_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "subscription_payments"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -835,6 +1268,51 @@ export type Database = {
         }
       }
       run_rent_reminders: { Args: never; Returns: number }
+      send_message: {
+        Args: { message_body: string; target_tenancy_id: string }
+        Returns: {
+          body: string
+          created_at: string
+          id: string
+          read_at: string | null
+          sender_id: string
+          thread_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "messages"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      set_landlord_etims_credentials: {
+        Args: {
+          target_cu_serial: string
+          target_cu_type?: string
+          target_environment?: string
+          target_kra_pin: string
+        }
+        Returns: {
+          cu_type: string
+          environment: string
+          kra_pin: string
+          verified_at: string
+        }[]
+      }
+      set_landlord_mpesa_credentials: {
+        Args: {
+          target_consumer_key: string
+          target_consumer_secret: string
+          target_environment?: string
+          target_passkey: string
+          target_shortcode: string
+        }
+        Returns: {
+          environment: string
+          shortcode: string
+          verified_at: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

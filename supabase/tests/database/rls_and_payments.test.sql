@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(22);
+select plan(45);
 
 -- Fixed identities keep failures readable.
 insert into auth.users (id, email) values
@@ -315,6 +315,213 @@ select throws_ok(
   'payment attempt rate limit exceeded',
   'payment attempt rate limiting is enforced in the database'
 );
+
+-- Per-landlord M-Pesa credential isolation and RPC round-trip.
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true);
+
+select is(
+  (select shortcode from public.set_landlord_mpesa_credentials('400200', 'test-consumer-key', 'test-consumer-secret-value', 'test-passkey-value', 'sandbox')),
+  '400200',
+  'landlord can connect their own M-Pesa credentials'
+);
+select is(
+  (select connected from public.landlord_mpesa_connection_status()),
+  true,
+  'landlord sees their own M-Pesa connection as connected'
+);
+select is(
+  (select masked_shortcode from public.landlord_mpesa_connection_status()),
+  '***200',
+  'connection status masks the shortcode'
+);
+
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000002', true);
+select is(
+  (select connected from public.landlord_mpesa_connection_status()),
+  false,
+  'a different landlord does not see landlord A''s M-Pesa connection'
+);
+
+select ok(
+  not has_table_privilege('authenticated', 'private.landlord_mpesa_credentials', 'select'),
+  'authenticated role has no direct table access to M-Pesa credentials'
+);
+select ok(
+  not has_function_privilege('authenticated', 'public.get_landlord_mpesa_credentials(uuid)', 'execute'),
+  'authenticated role cannot decrypt M-Pesa credentials directly'
+);
+
+reset role;
+
+-- eTIMS credential isolation and RPC round-trip (same shape as M-Pesa above).
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true);
+
+select is(
+  (select kra_pin from public.set_landlord_etims_credentials('A123456789Z', 'CU-SERIAL-0001', 'oscu', 'sandbox')),
+  'A123456789Z',
+  'landlord can connect their own eTIMS credentials'
+);
+select is(
+  (select connected from public.landlord_etims_connection_status()),
+  true,
+  'landlord sees their own eTIMS connection as connected'
+);
+
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000002', true);
+select is(
+  (select connected from public.landlord_etims_connection_status()),
+  false,
+  'a different landlord does not see landlord A''s eTIMS connection'
+);
+
+select ok(
+  not has_table_privilege('authenticated', 'private.landlord_etims_credentials', 'select'),
+  'authenticated role has no direct table access to eTIMS credentials'
+);
+select ok(
+  not has_function_privilege('authenticated', 'public.get_landlord_etims_credentials(uuid)', 'execute'),
+  'authenticated role cannot decrypt eTIMS credentials directly'
+);
+
+reset role;
+
+-- A matched payment automatically enqueues a pending tax invoice.
+insert into public.payments (
+  id, tenancy_id, landlord_id, amount, method, provider_transaction_id,
+  reconciliation_status, paid_at
+) values (
+  '70000000-0000-4000-8000-000000000003',
+  '50000000-0000-4000-8000-000000000001',
+  '10000000-0000-4000-8000-000000000001',
+  25000, 'stk_push', 'TEST-ETIMS-ENQUEUE',
+  'matched_auto', now()
+);
+select is(
+  (select status from public.tax_invoices where payment_id = '70000000-0000-4000-8000-000000000003'),
+  'pending',
+  'a matched rent payment automatically enqueues a pending tax invoice'
+);
+
+-- Tenant-landlord messaging: send, landlord visibility, cross-landlord
+-- isolation, and self-read-marking is blocked.
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '20000000-0000-4000-8000-000000000001', true);
+
+select is(
+  (select body from public.send_message('50000000-0000-4000-8000-000000000001', 'Hello landlord')),
+  'Hello landlord',
+  'a tenant can send a message on their own tenancy'
+);
+
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true);
+select is(
+  (
+    select count(*)::integer from public.messages m
+    join public.message_threads mt on mt.id = m.thread_id
+    where mt.tenancy_id = '50000000-0000-4000-8000-000000000001'
+  ),
+  1,
+  'the owning landlord can see a message on their tenancy'
+);
+
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000002', true);
+select is(
+  (
+    select count(*)::integer from public.message_threads
+    where tenancy_id = '50000000-0000-4000-8000-000000000001'
+  ),
+  0,
+  'a different landlord cannot see a thread on a tenancy they do not own'
+);
+
+select set_config('request.jwt.claim.sub', '20000000-0000-4000-8000-000000000001', true);
+update public.messages
+set read_at = now()
+where thread_id = (
+  select id from public.message_threads
+  where tenancy_id = '50000000-0000-4000-8000-000000000001'
+)
+and sender_id = '20000000-0000-4000-8000-000000000001';
+select is(
+  (
+    select read_at from public.messages
+    where thread_id = (
+      select id from public.message_threads
+      where tenancy_id = '50000000-0000-4000-8000-000000000001'
+    )
+    and sender_id = '20000000-0000-4000-8000-000000000001'
+  ),
+  null,
+  'a sender cannot mark their own message as read (RLS silently excludes the row)'
+);
+
+reset role;
+
+-- Landlord-facing notifications: the triggers added for the dead
+-- notification bell actually fire for maintenance and matched payments.
+select is(
+  (select count(*)::integer from public.notifications where profile_id = '10000000-0000-4000-8000-000000000001' and type = 'maintenance_submitted'),
+  1,
+  'a submitted maintenance request notifies the owning landlord'
+);
+select ok(
+  (select count(*)::integer from public.notifications where profile_id = '10000000-0000-4000-8000-000000000001' and type = 'payment_received') >= 1,
+  'a matched payment notifies the owning landlord'
+);
+
+-- End-of-tenancy: the owning landlord can end an active tenancy, and doing
+-- so frees the unit for a new one (partial unique index no longer blocks it).
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true);
+
+select is(
+  (select status from public.end_tenancy('50000000-0000-4000-8000-000000000001', current_date, 'moved out')),
+  'ended',
+  'a landlord can end their own tenancy'
+);
+select is(
+  (select count(*)::integer from public.tenancies where unit_id = '40000000-0000-4000-8000-000000000001' and status in ('pending', 'active')),
+  0,
+  'ending a tenancy frees the unit for a new one'
+);
+
+reset role;
+
+-- Billing entitlements: existing landlords were backfilled onto a trialing
+-- Starter subscription, and the property cap it carries is enforced by RLS.
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true);
+
+select is(
+  (select plan_name from public.landlord_subscription_status()),
+  'Starter',
+  'an existing landlord was backfilled onto the Starter plan'
+);
+select is(
+  (select status from public.landlord_subscription_status()),
+  'trialing',
+  'the backfilled subscription starts in trial'
+);
+-- Message is asserted, not just the SQLSTATE: a "permission denied for
+-- function" error shares 42501 with an actual RLS violation, and a bug once
+-- made this test pass for the wrong reason (see landlord_can_add_property's
+-- grant history in 20260712060000_billing_entitlements.sql).
+select throws_ok(
+  $$insert into public.properties (landlord_id, name, address)
+    values ('10000000-0000-4000-8000-000000000001', 'Second Property', 'Nairobi')$$,
+  '42501',
+  'new row violates row-level security policy for table "properties"',
+  'a landlord on the Starter plan cannot exceed its one-property cap'
+);
+
+reset role;
 
 select * from finish();
 rollback;

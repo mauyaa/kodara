@@ -10,6 +10,8 @@ import {
   Users,
   Wrench,
   CreditCard,
+  MessageCircle,
+  Settings,
   Menu,
   X,
 } from "lucide-react";
@@ -23,6 +25,8 @@ export const navigation = [
   { name: "Tenants", href: "/tenants", icon: Users },
   { name: "Payments", href: "/payments", icon: CreditCard },
   { name: "Maintenance", href: "/maintenance", icon: Wrench },
+  { name: "Messages", href: "/messages", icon: MessageCircle },
+  { name: "Settings", href: "/settings", icon: Settings },
 ];
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {

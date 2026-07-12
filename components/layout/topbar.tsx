@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Bell } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { LogoMark } from "@/components/brand/logo";
 import { MobileNav } from "@/components/layout/sidebar";
 import { CommandPaletteTrigger } from "@/components/command/command-palette";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { NotificationsDropdown } from "@/components/layout/notifications-dropdown";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,14 +25,27 @@ function initials(name: string) {
   return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
 }
 
+type TopbarNotification = {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  read_at: string | null;
+  created_at: string;
+};
+
 export function Topbar({
   fullName,
   email,
   phone,
+  userId,
+  initialNotifications,
 }: {
   fullName: string;
   email: string | null;
   phone: string | null;
+  userId: string;
+  initialNotifications: TopbarNotification[];
 }) {
   return (
     <header className="bg-background/40 backdrop-blur-3xl supports-[backdrop-filter]:bg-background/40 sticky top-0 z-30 flex h-14 items-center justify-between gap-3 px-4 sm:px-6 border-b border-border/40">
@@ -52,10 +64,7 @@ export function Topbar({
       </div>
       <div className="flex items-center gap-2 sm:gap-4">
         <ThemeToggle />
-        <Button variant="ghost" size="icon" className="text-muted-foreground hover:bg-secondary/50">
-          <Bell className="h-4 w-4" />
-          <span className="sr-only">Toggle notifications</span>
-        </Button>
+        <NotificationsDropdown userId={userId} initialNotifications={initialNotifications} />
         <DropdownMenu>
           <DropdownMenuTrigger className="relative h-8 w-8 rounded-full outline-none hover:ring-2 hover:ring-border focus-visible:ring-2 focus-visible:ring-primary transition-all duration-200 ease-[var(--ease-out)] active:scale-[0.97]">
             <Avatar className="h-8 w-8">

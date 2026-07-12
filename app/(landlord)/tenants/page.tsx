@@ -1,8 +1,8 @@
-import { Users, Search, Filter } from "lucide-react";
+import { Users, Search, Filter, X } from "lucide-react";
 import { formatKES } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import { revalidatePath } from "next/cache";
 
 export default async function TenantsPage({
   searchParams,
@@ -21,6 +22,20 @@ export default async function TenantsPage({
 }) {
   const { q, status } = await searchParams;
   const supabase = await createClient();
+
+  const { data: invitations } = await supabase
+    .from("tenant_invitations")
+    .select("id, phone, rent_amount, unit_id, expires_at, units ( name, properties ( name ) )")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
+  const cancelInvitation = async (formData: FormData) => {
+    "use server";
+    const invitationId = String(formData.get("invitationId") ?? "");
+    const sb = await createClient();
+    await sb.rpc("cancel_tenant_invitation", { target_invitation_id: invitationId });
+    revalidatePath("/tenants");
+  };
 
   // Fetch tenancies joined with profiles, units, and properties
   const { data: tenancies } = await supabase
@@ -93,6 +108,42 @@ export default async function TenantsPage({
         </Link>
       </div>
 
+      {(invitations ?? []).length > 0 && (
+        <Card className="premium-card overflow-hidden">
+          <CardHeader className="border-b border-border/40 pb-4">
+            <CardTitle className="text-base font-semibold">Pending invitations</CardTitle>
+            <CardDescription>Not yet accepted. Cancel to free up the unit for someone else.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y divide-border/40">
+              {(invitations ?? []).map((invitation) => {
+                const unit = Array.isArray(invitation.units) ? invitation.units[0] : invitation.units;
+                const property = unit && Array.isArray(unit.properties) ? unit.properties[0] : unit?.properties;
+                return (
+                  <div key={invitation.id} className="flex items-center justify-between gap-4 px-6 py-4">
+                    <div>
+                      <div className="font-medium text-[14px] text-foreground">{invitation.phone}</div>
+                      <div className="text-[12px] text-muted-foreground mt-0.5">
+                        {property?.name ? `${property.name} · Unit ${unit?.name}` : "—"} ·{" "}
+                        {formatKES(Number(invitation.rent_amount))} / mo · expires{" "}
+                        {new Date(invitation.expires_at).toLocaleDateString("en-KE", { dateStyle: "medium" })}
+                      </div>
+                    </div>
+                    <form action={cancelInvitation}>
+                      <input type="hidden" name="invitationId" value={invitation.id} />
+                      <Button type="submit" variant="outline" size="sm" className="h-8 px-3 text-[12px]">
+                        <X className="mr-1.5 h-3.5 w-3.5" />
+                        Cancel
+                      </Button>
+                    </form>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="premium-card overflow-hidden">
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border/40 pb-4">
           <CardTitle className="text-base font-semibold">All Tenants</CardTitle>
@@ -131,13 +182,14 @@ export default async function TenantsPage({
                 <TableHead className="pl-6 h-11 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tenant Details</TableHead>
                 <TableHead className="h-11 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Location</TableHead>
                 <TableHead className="h-11 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Lease Status</TableHead>
-                <TableHead className="text-right pr-6 h-11 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Financial Status</TableHead>
+                <TableHead className="text-right h-11 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Financial Status</TableHead>
+                <TableHead className="text-right pr-6 h-11 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-[13px] text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center py-8 text-[13px] text-muted-foreground">
                     {query || statusFilter
                       ? "No tenants match this search."
                       : "Tenants appear here once you onboard them to a unit."}
@@ -164,7 +216,7 @@ export default async function TenantsPage({
                       {tenancy.status === "pending" && <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px] uppercase tracking-wider font-semibold">Pending Invite</Badge>}
                       {tenancy.status === "ended" && <Badge variant="outline" className="bg-secondary text-secondary-foreground border-border/50 text-[10px] uppercase tracking-wider font-semibold">Ended</Badge>}
                     </TableCell>
-                    <TableCell className="text-right pr-6">
+                    <TableCell className="text-right">
                       {arrears > 0 ? (
                         <div>
                           <div className="text-destructive font-semibold tabular-nums font-mono">{formatKES(arrears)}</div>
@@ -174,6 +226,22 @@ export default async function TenantsPage({
                         <div>
                           <div className="text-foreground font-semibold tabular-nums font-mono">{formatKES(Number(tenancy.rent_amount))} / mo</div>
                           <div className="text-[10px] uppercase font-bold tracking-widest text-primary/80 mt-0.5">Up to Date</div>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right pr-6">
+                      {tenancy.status !== "ended" && (
+                        <div className="flex justify-end gap-2">
+                          <Link href={`/messages/${tenancy.id}`}>
+                            <Button variant="outline" size="sm" className="h-8 px-3 text-[12px]">
+                              Message
+                            </Button>
+                          </Link>
+                          <Link href={`/tenants/${tenancy.id}/end`}>
+                            <Button variant="outline" size="sm" className="h-8 px-3 text-[12px] text-destructive border-destructive/20 hover:bg-destructive/5">
+                              End tenancy
+                            </Button>
+                          </Link>
                         </div>
                       )}
                     </TableCell>
