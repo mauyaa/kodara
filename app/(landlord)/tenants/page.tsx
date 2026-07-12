@@ -232,6 +232,11 @@ export default async function TenantsPage({
                     <TableCell className="text-right pr-6">
                       {tenancy.status !== "ended" && (
                         <div className="flex justify-end gap-2">
+                          <Link href={`/tenants/${tenancy.id}/pay`}>
+                            <Button size="sm" className="h-8 px-3 text-[12px] bg-primary text-primary-foreground hover:bg-primary/90">
+                              Mark as paid
+                            </Button>
+                          </Link>
                           <Link href={`/messages/${tenancy.id}`}>
                             <Button variant="outline" size="sm" className="h-8 px-3 text-[12px]">
                               Message

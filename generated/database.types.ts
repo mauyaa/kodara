@@ -1167,6 +1167,38 @@ export type Database = {
         Args: { target_landlord_id: string }
         Returns: undefined
       }
+      record_manual_payment: {
+        Args: {
+          payment_amount: number
+          payment_date: string
+          payment_note?: string
+          target_tenancy_id: string
+        }
+        Returns: {
+          account_reference: string | null
+          amount: number
+          checkout_request_id: string | null
+          created_at: string
+          id: string
+          landlord_id: string
+          method: string
+          paid_at: string
+          payment_attempt_id: string | null
+          provider: string
+          provider_transaction_id: string
+          reconciliation_status: string
+          sender_phone: string | null
+          status: string
+          tenancy_id: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       record_mpesa_stk_callback: {
         Args: {
           callback_amount: number
