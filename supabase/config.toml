@@ -265,12 +265,12 @@ template = "Your code is {{ `{{ .Code }}` }}"
 max_frequency = "5s"
 
 # Use pre-defined map of phone number to OTP for testing.
-[auth.sms.test_otp]
-"254712345678" = "123456"
-"254712000001" = "123456"
-"254722000002" = "123456"
-"254733000003" = "123456"
-"254701234567" = "123456"
+# Deliberately NOT defined here anymore: `config push` has no way to scope
+# this out of a remotes override (an empty [remotes.X.auth.sms.test_otp]
+# table does not clear inherited root entries), and these are fixed,
+# publicly-documented bypass codes -- any value here would eventually land
+# on the linked production project. Read the real OTP from Inbucket/logs
+# during local testing instead.
 
 # Configure logged in session timeouts.
 # [auth.sessions]
@@ -448,3 +448,42 @@ enabled = true
 # declarative_schema_path = "./database"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+# Overrides for `supabase config push --project-ref gonfgtovwltpynpjrzao` (the
+# linked production project) -- without this, config push would overwrite
+# production's site_url/redirect_urls with the localhost values above, which
+# would break real auth email links. Everything not listed here still
+# inherits the root config, including [auth.email] enable_confirmations,
+# which is the setting this override exists to actually change in production.
+[remotes.production]
+project_id = "gonfgtovwltpynpjrzao"
+
+[remotes.production.auth]
+site_url = "https://kodara.vercel.app"
+additional_redirect_urls = ["https://kodara.vercel.app"]
+
+# Everything below restores production's own pre-existing values for
+# settings a bare `config push` would otherwise silently overwrite with
+# this repo's LOCAL dev defaults (dummy Twilio creds, MFA disabled, SMS
+# signup/confirmations toggled on). Only auth.email.enable_confirmations is
+# an intentional change here -- confirmed 2026-07-13 against a fresh
+# `config push` diff showing production's actual prior values.
+[remotes.production.auth.email]
+enable_confirmations = false
+max_frequency = "1m0s"
+otp_length = 8
+
+[remotes.production.auth.sms]
+enable_signup = false
+enable_confirmations = false
+template = "Your code is {{ .Code }}"
+
+[remotes.production.auth.sms.twilio]
+enabled = false
+account_sid = ""
+message_service_sid = ""
+auth_token = ""
+
+[remotes.production.auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true

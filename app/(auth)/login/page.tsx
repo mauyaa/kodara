@@ -3,9 +3,9 @@ import { login } from "../actions";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, ArrowRight } from "lucide-react";
+import { AlertCircle, ArrowRight, Mail } from "lucide-react";
 
-export default async function LoginPage(props: { searchParams: Promise<{ error?: string }> }) {
+export default async function LoginPage(props: { searchParams: Promise<{ error?: string; message?: string }> }) {
   const searchParams = await props.searchParams;
 
   return (
@@ -21,6 +21,13 @@ export default async function LoginPage(props: { searchParams: Promise<{ error?:
         <div className="mb-6 flex items-start gap-3 rounded-xl bg-red-50 p-4 border border-red-100">
           <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
           <div className="text-sm text-red-800 font-medium">{searchParams.error}</div>
+        </div>
+      )}
+
+      {searchParams?.message && (
+        <div className="mb-6 flex items-start gap-3 rounded-xl bg-secondary/30 p-4 border border-border/60">
+          <Mail className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+          <div className="text-sm text-foreground font-medium">{searchParams.message}</div>
         </div>
       )}
 
