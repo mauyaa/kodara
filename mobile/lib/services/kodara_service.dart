@@ -62,21 +62,19 @@ class KodaraService {
 
   // ---- Lease ------------------------------------------------------------
 
-  /// The tenant's current active tenancy with unit and property names, or
-  /// null if they have none (e.g. invitation not yet accepted).
-  Future<Tenancy?> fetchActiveTenancy() => _guard(() async {
+  /// Every unit the tenant currently rents. Most tenants have exactly one,
+  /// but nothing in the data model prevents a tenant from renting more than
+  /// one unit -- from the same landlord or different ones.
+  Future<List<Tenancy>> fetchActiveTenancies() => _guard(() async {
         final userId = currentUserId;
-        if (userId == null) return null;
-        final row = await _client
+        if (userId == null) return const <Tenancy>[];
+        final rows = await _client
             .from('tenancies')
             .select('*, unit:units(name, property:properties(name, address))')
             .eq('tenant_id', userId)
             .eq('status', 'active')
-            .order('created_at', ascending: false)
-            .limit(1)
-            .maybeSingle();
-        if (row == null) return null;
-        return Tenancy.fromJson(row);
+            .order('created_at', ascending: false);
+        return rows.map(Tenancy.fromJson).toList();
       });
 
   Future<TenancyBalance?> fetchBalance(String tenancyId) => _guard(() async {
@@ -269,6 +267,71 @@ class KodaraService {
   /// Short-lived signed URL for a maintenance photo in the private bucket.
   Future<String> signedPhotoUrl(String path) => _guard(() =>
       _client.storage.from('maintenance-photos').createSignedUrl(path, 3600));
+
+  // ---- Messaging -------------------------------------------------------------
+
+  Future<String?> _findThreadId(String tenancyId) => _guard(() async {
+        final row = await _client
+            .from('message_threads')
+            .select('id')
+            .eq('tenancy_id', tenancyId)
+            .maybeSingle();
+        return row?['id'] as String?;
+      });
+
+  Future<List<ChatMessage>> fetchMessages(String tenancyId) => _guard(() async {
+        final threadId = await _findThreadId(tenancyId);
+        if (threadId == null) return const <ChatMessage>[];
+        final rows = await _client
+            .from('messages')
+            .select()
+            .eq('thread_id', threadId)
+            .order('created_at', ascending: true);
+        return rows.map(ChatMessage.fromJson).toList();
+      });
+
+  /// Live conversation updates. See [watchAttempt] for why this seeds with a
+  /// REST fetch first. If no thread exists yet (neither party has sent a
+  /// message), this only yields the empty seed; call [sendMessage] to create
+  /// one and reload.
+  Stream<List<ChatMessage>> watchMessages(String tenancyId) async* {
+    final seeded = await fetchMessages(tenancyId);
+    yield seeded;
+    final threadId = await _findThreadId(tenancyId);
+    if (threadId == null) return;
+    yield* _client
+        .from('messages')
+        .stream(primaryKey: ['id'])
+        .eq('thread_id', threadId)
+        .map((rows) => rows
+            .map((r) => ChatMessage.fromJson(Map<String, dynamic>.from(r)))
+            .toList()
+          ..sort((a, b) => a.createdAt.compareTo(b.createdAt)));
+  }
+
+  Future<ChatMessage> sendMessage({
+    required String tenancyId,
+    required String body,
+  }) =>
+      _guard(() async {
+        final row = await _client.rpc('send_message', params: {
+          'target_tenancy_id': tenancyId,
+          'message_body': body,
+        });
+        return ChatMessage.fromJson(Map<String, dynamic>.from(row as Map));
+      });
+
+  Future<void> markThreadRead(String tenancyId) => _guard(() async {
+        final threadId = await _findThreadId(tenancyId);
+        final userId = currentUserId;
+        if (threadId == null || userId == null) return;
+        await _client
+            .from('messages')
+            .update({'read_at': DateTime.now().toUtc().toIso8601String()})
+            .eq('thread_id', threadId)
+            .neq('sender_id', userId)
+            .isFilter('read_at', null);
+      });
 
   // ---- Auth -----------------------------------------------------------------
 

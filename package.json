@@ -11,7 +11,7 @@
     "test": "vitest run",
     "test:db": "supabase test db --local supabase/tests/database",
     "test:realtime": "node scripts/realtime-e2e.mjs",
-    "check:edge": "deno check --config supabase/functions/deno.json supabase/functions/mpesa-stk-push/index.ts supabase/functions/mpesa-callback/index.ts",
+    "check:edge": "deno check --config supabase/functions/deno.json supabase/functions/mpesa-stk-push/index.ts supabase/functions/mpesa-callback/index.ts supabase/functions/mpesa-test-connection/index.ts supabase/functions/etims-submit/index.ts supabase/functions/kodara-subscription-stk-push/index.ts supabase/functions/kodara-subscription-mpesa-callback/index.ts supabase/functions/paystack-initialize/index.ts supabase/functions/paystack-webhook/index.ts",
     "check": "npm run lint && npm run typecheck && npm test && npm run build"
   },
   "engines": {

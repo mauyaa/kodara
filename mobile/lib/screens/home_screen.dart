@@ -31,7 +31,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _selectedIndex = 0;
 
-  static const _titles = ['Home', 'Payments', 'Repairs', 'Account'];
+  static const _titles = ['Home', 'Payments', 'Repairs', 'Messages', 'Account'];
 
   void _selectTab(int index) {
     if (index == _selectedIndex) return;
@@ -67,11 +67,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           error: (error, _) => AsyncStateView(
             loading: false,
             error: error,
-            onRetry: () => ref.invalidate(activeTenancyProvider),
+            onRetry: () => ref.invalidate(activeTenanciesProvider),
           ),
           data: (value) => value == null
               ? _InvitationGate(
-                  onAccepted: () => ref.invalidate(activeTenancyProvider),
+                  onAccepted: () => ref.invalidate(activeTenanciesProvider),
                 )
               : IndexedStack(
                   index: _selectedIndex,
@@ -83,6 +83,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     _PaymentsTab(tenancy: value),
                     _RepairsTab(tenancy: value),
+                    _MessagesTab(tenancy: value),
                     _AccountTab(tenancy: value),
                   ],
                 ),
@@ -110,6 +111,7 @@ class _FloatingDock extends StatelessWidget {
     (Icons.home_outlined, Icons.home_rounded, 'Home'),
     (Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'Payments'),
     (Icons.build_outlined, Icons.build_rounded, 'Repairs'),
+    (Icons.chat_bubble_outline_rounded, Icons.chat_bubble_rounded, 'Messages'),
     (Icons.person_outline_rounded, Icons.person_rounded, 'Account'),
   ];
 
@@ -373,7 +375,7 @@ class _OverviewTab extends ConsumerWidget {
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(balanceProvider(tenancy.id));
-        ref.invalidate(activeTenancyProvider);
+        ref.invalidate(activeTenanciesProvider);
         await ref.read(balanceProvider(tenancy.id).future);
       },
       child: ListView(
@@ -384,6 +386,7 @@ class _OverviewTab extends ConsumerWidget {
           _dockClearance,
         ),
         children: [
+          const _UnitSwitcher(),
           Text(
             [
               tenancy.propertyName ?? 'Your home',
@@ -435,6 +438,53 @@ class _OverviewTab extends ConsumerWidget {
           else
             _RepairRow(request: requests.first),
         ],
+      ),
+    );
+  }
+}
+
+/// A row of pills to switch which tenancy is active. Renders nothing when
+/// the tenant only has one -- most tenants -- so it never adds noise to the
+/// common case.
+class _UnitSwitcher extends ConsumerWidget {
+  const _UnitSwitcher();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tenancies = ref.watch(activeTenanciesProvider).valueOrNull ?? const <Tenancy>[];
+    if (tenancies.length < 2) return const SizedBox.shrink();
+
+    final selectedId = ref.watch(activeTenancyProvider).valueOrNull?.id;
+    final kodara = context.kodara;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: KodaraSpacing.space4),
+      child: SizedBox(
+        height: 36,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: tenancies.length,
+          separatorBuilder: (_, __) => const SizedBox(width: KodaraSpacing.space2),
+          itemBuilder: (context, index) {
+            final t = tenancies[index];
+            final selected = t.id == selectedId;
+            return ChoiceChip(
+              label: Text(t.unitName != null ? 'Unit ${t.unitName}' : t.propertyName ?? 'Unit'),
+              selected: selected,
+              onSelected: (_) {
+                HapticFeedback.selectionClick();
+                ref.read(selectedTenancyIdProvider.notifier).state = t.id;
+              },
+              selectedColor: kodara.accentTint,
+              labelStyle: TextStyle(
+                color: selected ? kodara.accent : kodara.textSecondary,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              ),
+              backgroundColor: kodara.surface,
+              side: BorderSide(color: kodara.border),
+            );
+          },
+        ),
       ),
     );
   }
@@ -662,6 +712,168 @@ class _RepairsTab extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Direct conversation with the landlord for this tenancy. Marks the other
+/// party's messages read as soon as the tab is opened.
+class _MessagesTab extends ConsumerStatefulWidget {
+  const _MessagesTab({required this.tenancy});
+
+  final Tenancy tenancy;
+
+  @override
+  ConsumerState<_MessagesTab> createState() => _MessagesTabState();
+}
+
+class _MessagesTabState extends ConsumerState<_MessagesTab> {
+  final _controller = TextEditingController();
+  bool _sending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(kodaraServiceProvider).markThreadRead(widget.tenancy.id);
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _send() async {
+    final body = _controller.text.trim();
+    if (body.isEmpty || _sending) return;
+    setState(() => _sending = true);
+    try {
+      await ref
+          .read(kodaraServiceProvider)
+          .sendMessage(tenancyId: widget.tenancy.id, body: body);
+      _controller.clear();
+      ref.invalidate(messagesStreamProvider(widget.tenancy.id));
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final messagesAsync = ref.watch(messagesStreamProvider(widget.tenancy.id));
+    final userId = ref.watch(currentUserProvider)?.id;
+
+    return Column(
+      children: [
+        Expanded(
+          child: messagesAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, _) => AsyncStateView(
+              loading: false,
+              error: error,
+              onRetry: () =>
+                  ref.invalidate(messagesStreamProvider(widget.tenancy.id)),
+            ),
+            data: (messages) => messages.isEmpty
+                ? const Center(
+                    child: EmptyState(
+                      icon: Icons.chat_bubble_outline_rounded,
+                      title: 'No messages yet',
+                      message: 'Say hello to your landlord.',
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(
+                      KodaraSpacing.space5,
+                      KodaraSpacing.space4,
+                      KodaraSpacing.space5,
+                      KodaraSpacing.space4,
+                    ),
+                    itemCount: messages.length,
+                    itemBuilder: (context, index) {
+                      final message = messages[index];
+                      final isMine = message.senderId == userId;
+                      return Align(
+                        alignment: isMine
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(
+                              vertical: KodaraSpacing.space1),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: KodaraSpacing.space4,
+                            vertical: KodaraSpacing.space3,
+                          ),
+                          constraints: BoxConstraints(
+                            maxWidth:
+                                MediaQuery.of(context).size.width * 0.75,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isMine
+                                ? context.kodara.accent
+                                : context.kodara.surface,
+                            borderRadius: BorderRadius.circular(18),
+                            border: isMine
+                                ? null
+                                : Border.all(color: context.kodara.border),
+                          ),
+                          child: Text(
+                            message.body,
+                            style: TextStyle(
+                              color: isMine
+                                  ? Colors.white
+                                  : context.kodara.textPrimary,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ),
+        SafeArea(
+          top: false,
+          minimum: const EdgeInsets.fromLTRB(
+            KodaraSpacing.space5,
+            0,
+            KodaraSpacing.space5,
+            KodaraSpacing.space4,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  minLines: 1,
+                  maxLines: 4,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => _send(),
+                  decoration:
+                      const InputDecoration(hintText: 'Write a message…'),
+                ),
+              ),
+              const SizedBox(width: KodaraSpacing.space2),
+              IconButton.filled(
+                onPressed: _sending ? null : _send,
+                icon: _sending
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.send_rounded),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

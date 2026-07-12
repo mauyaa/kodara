@@ -193,6 +193,34 @@ class MaintenanceRequest {
       );
 }
 
+/// One message in the tenancy's conversation with its landlord.
+class ChatMessage {
+  const ChatMessage({
+    required this.id,
+    required this.threadId,
+    required this.senderId,
+    required this.body,
+    required this.createdAt,
+    this.readAt,
+  });
+
+  final String id;
+  final String threadId;
+  final String senderId;
+  final String body;
+  final DateTime createdAt;
+  final DateTime? readAt;
+
+  factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
+        id: json['id'] as String,
+        threadId: json['thread_id'] as String,
+        senderId: json['sender_id'] as String,
+        body: json['body'] as String,
+        createdAt: _asDate(json['created_at'])!,
+        readAt: _asDate(json['read_at']),
+      );
+}
+
 /// A pending invitation addressed to the signed-in tenant's phone number.
 class TenantInvitation {
   const TenantInvitation({
