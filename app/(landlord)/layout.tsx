@@ -15,6 +15,14 @@ export default async function LandlordLayout({
 
   let fullName = "Account";
   let phone: string | null = null;
+  let initialNotifications: Array<{
+    id: string;
+    type: string;
+    title: string;
+    body: string;
+    read_at: string | null;
+    created_at: string;
+  }> = [];
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
@@ -24,6 +32,13 @@ export default async function LandlordLayout({
     if (profile?.role === "tenant") redirect("/portal");
     fullName = profile?.full_name ?? "Account";
     phone = profile?.phone ?? null;
+
+    const { data: notifications } = await supabase
+      .from("notifications")
+      .select("id, type, title, body, read_at, created_at")
+      .order("created_at", { ascending: false })
+      .limit(20);
+    initialNotifications = notifications ?? [];
   }
 
   return (
@@ -32,7 +47,13 @@ export default async function LandlordLayout({
       <CommandPalette />
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Topbar fullName={fullName} email={user?.email ?? null} phone={phone} />
+        <Topbar
+          fullName={fullName}
+          email={user?.email ?? null}
+          phone={phone}
+          userId={user?.id ?? ""}
+          initialNotifications={initialNotifications}
+        />
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <div className="mx-auto max-w-6xl">
             {children}

@@ -1,4 +1,4 @@
-import { Banknote, Wrench, ChevronRight, CheckCircle2 } from "lucide-react";
+import { Banknote, Wrench, ChevronRight, CheckCircle2, FileWarning } from "lucide-react";
 import { formatKES } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -107,6 +107,11 @@ export default async function DashboardPage() {
     .from('payments')
     .select('id', { count: 'exact', head: true })
     .eq('reconciliation_status', 'unmatched');
+
+  const { count: failedTaxInvoiceCount } = await supabase
+    .from('tax_invoices')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'failed');
 
   const metrics = [
     {
@@ -283,7 +288,7 @@ export default async function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3">
-              {(unmatchedPaymentsCount || 0) + (maintenanceCount || 0) === 0 && (
+              {(unmatchedPaymentsCount || 0) + (maintenanceCount || 0) + (failedTaxInvoiceCount || 0) === 0 && (
                 <div className="flex items-center gap-4 rounded-xl bg-background p-4 ring-1 ring-border/50">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
                     <CheckCircle2 className="h-4 w-4 text-primary" />
@@ -321,6 +326,23 @@ export default async function DashboardPage() {
                     <div>
                       <p className="text-sm font-medium text-foreground">{maintenanceCount || 0} Open Tickets</p>
                       <p className="text-xs text-muted-foreground mt-0.5">Maintenance requests</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                </div>
+              </Link>
+              )}
+
+              {(failedTaxInvoiceCount || 0) > 0 && (
+              <Link href="/payments" className="group block focus:outline-none focus:ring-2 focus:ring-primary rounded-xl transition-all duration-200 ease-[var(--ease-out)] active:scale-[0.98]">
+                <div className="flex items-center justify-between rounded-xl bg-background p-4 shadow-sm ring-1 ring-border/50 transition-all group-hover:shadow-float">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/10">
+                      <FileWarning className="h-4 w-4 text-destructive" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{failedTaxInvoiceCount || 0} eTIMS invoices failed</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">KRA submission needs attention</p>
                     </div>
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />

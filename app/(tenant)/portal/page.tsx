@@ -206,6 +206,40 @@ export default async function TenantPortalPage({
 
   const tenancyId = tenancy.id;
 
+  const { data: thread } = await supabase
+    .from("message_threads")
+    .select("id")
+    .eq("tenancy_id", tenancyId)
+    .maybeSingle();
+
+  const { data: messages } = thread
+    ? await supabase
+        .from("messages")
+        .select("id, sender_id, body, created_at")
+        .eq("thread_id", thread.id)
+        .order("created_at", { ascending: true })
+        .limit(50)
+    : { data: [] };
+
+  if (thread) {
+    await supabase
+      .from("messages")
+      .update({ read_at: new Date().toISOString() })
+      .eq("thread_id", thread.id)
+      .neq("sender_id", user.id)
+      .is("read_at", null);
+  }
+
+  const sendMessageToLandlord = async (formData: FormData) => {
+    "use server";
+    const body = (formData.get("body") as string)?.trim();
+    if (!body) return;
+    const sb = await createClient();
+    await sb.rpc("send_message", { target_tenancy_id: tenancyId, message_body: body });
+    revalidatePath("/portal");
+    redirect("/portal");
+  };
+
   const requestStkPush = async (formData: FormData) => {
     "use server";
     const amount = Math.round(Number(formData.get("amount")));
@@ -602,6 +636,53 @@ export default async function TenantPortalPage({
               </div>
             </form>
           </details>
+        </CardContent>
+      </Card>
+      </RevealItem>
+
+      {/* Message your landlord */}
+      <RevealItem>
+      <Card className="premium-card">
+        <CardHeader>
+          <CardTitle className="text-base font-semibold">Message your landlord</CardTitle>
+          <CardDescription>Only you and your landlord can see this.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          {(!messages || messages.length === 0) ? (
+            <p className="py-4 text-center text-[13px] text-muted-foreground">
+              No messages yet. Say hello.
+            </p>
+          ) : (
+            messages.slice(-10).map((message) => {
+              const isMine = message.sender_id === user.id;
+              return (
+                <div
+                  key={message.id}
+                  className={`flex flex-col max-w-[80%] ${isMine ? "self-end items-end" : "self-start items-start"}`}
+                >
+                  <div
+                    className={`rounded-2xl px-4 py-2.5 text-[14px] ${
+                      isMine ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"
+                    }`}
+                  >
+                    {message.body}
+                  </div>
+                </div>
+              );
+            })
+          )}
+          <form action={sendMessageToLandlord} className="mt-2 flex items-center gap-2 border-t border-border/40 pt-4">
+            <input
+              name="body"
+              required
+              maxLength={2000}
+              placeholder="Write a message…"
+              className="h-11 flex-1 rounded-xl border border-border/50 bg-secondary/30 px-3 text-[14px] outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
+            />
+            <Button type="submit" className="h-11 px-5">
+              Send
+            </Button>
+          </form>
         </CardContent>
       </Card>
       </RevealItem>

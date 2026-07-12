@@ -130,6 +130,24 @@ Deno.serve(async (request) => {
     const tenancy = tenancyData as unknown as TenancyRecord;
     const landlordId = tenancy.unit.property.landlord_id;
 
+    const { data: credentialRows, error: credentialError } = await serviceClient
+      .rpc("get_landlord_mpesa_credentials", { target_landlord_id: landlordId });
+
+    if (credentialError) {
+      console.error("Could not load landlord M-Pesa credentials", credentialError);
+      return json({ error: "payment_service_unavailable" }, 503);
+    }
+    const credentials = (credentialRows as Array<{
+      shortcode: string;
+      consumer_key: string;
+      consumer_secret: string;
+      passkey: string;
+      environment: string;
+    }> | null)?.[0];
+    if (!credentials) {
+      return json({ error: "landlord_mpesa_not_connected" }, 409);
+    }
+
     const { data: existingAttempt } = await serviceClient
       .from("payment_attempts")
       .select(
@@ -192,17 +210,14 @@ Deno.serve(async (request) => {
     }
     reservedAttemptId = attempt.id;
 
-    const consumerKey = requiredEnv("MPESA_CONSUMER_KEY");
-    const consumerSecret = requiredEnv("MPESA_CONSUMER_SECRET");
-    const shortcode = requiredEnv("MPESA_SHORTCODE");
-    const passkey = requiredEnv("MPESA_PASSKEY");
+    const consumerKey = credentials.consumer_key;
+    const consumerSecret = credentials.consumer_secret;
+    const shortcode = credentials.shortcode;
+    const passkey = credentials.passkey;
     const callbackBaseUrl = requiredEnv("MPESA_CALLBACK_URL");
     const callbackToken = requiredEnv("MPESA_CALLBACK_TOKEN");
-    const environment = (Deno.env.get("MPESA_ENVIRONMENT") ?? "sandbox")
-      .trim()
-      .toLowerCase();
     const darajaBaseUrl =
-      environment === "production"
+      credentials.environment === "production"
         ? "https://api.safaricom.co.ke"
         : "https://sandbox.safaricom.co.ke";
 
