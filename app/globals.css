@@ -4,7 +4,12 @@
 
 @theme inline {
   --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display), var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-mono), ui-monospace, "SF Mono", monospace;
+
+  --color-lime: var(--lime);
+  --color-lime-deep: var(--lime-deep);
+  --color-lime-ink: var(--lime-ink);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -33,9 +38,9 @@
   --shadow-subtle: 0px 1px 2px rgba(0, 0, 0, 0.04), 0px 4px 12px rgba(0, 0, 0, 0.02);
   --shadow-elevated: 0px 2px 4px rgba(0, 0, 0, 0.04), 0px 8px 24px rgba(0, 0, 0, 0.08), 0px 16px 32px rgba(0,0,0,0.04);
   --shadow-float: 0px 4px 8px rgba(0, 0, 0, 0.04), 0px 12px 32px rgba(0, 0, 0, 0.08), 0px 24px 64px rgba(0,0,0,0.06);
-  /* The one featured surface per screen: a directional emerald glow so the
-     shadow itself says "this is the important one". */
-  --shadow-hero: 0px 16px 40px -12px oklch(51% 0.115 166 / 0.35), 0px 4px 12px oklch(51% 0.115 166 / 0.12);
+  /* The one featured surface per screen: a directional glow in the hero's
+     own accent color so the shadow itself says "this is the important one". */
+  --shadow-hero: 0px 24px 56px -16px color-mix(in oklch, var(--lime-deep) 55%, transparent), 0px 6px 16px -4px color-mix(in oklch, var(--lime-deep) 30%, transparent);
 }
 
 @layer base {
@@ -65,6 +70,15 @@
     /* Accent - Faint mint wash for hover states */
     --accent: oklch(96% 0.014 166);
     --accent-foreground: oklch(30% 0.05 166);
+
+    /* Signature lime — the ONE saturated moment reserved for a single
+       hero card per screen (dashboard "collected this month", portal
+       balance). Same hue family as --primary, pushed to a real bright
+       extreme rather than living as a second muted accent — never used
+       for buttons, links, or more than one surface in a view. */
+    --lime: oklch(82% 0.185 140);
+    --lime-deep: oklch(60% 0.16 140);
+    --lime-ink: oklch(24% 0.085 140);
 
     --destructive: oklch(55% 0.19 27);
     --destructive-foreground: oklch(100% 0 0);
@@ -110,6 +124,13 @@
 
     --accent: oklch(27% 0.03 166);
     --accent-foreground: oklch(85% 0.08 166);
+
+    /* Lime reads as high-contrast against dark surfaces already; kept
+       near-identical to light mode rather than dimmed, since the whole
+       point of this token is to be the one bright thing in the frame. */
+    --lime: oklch(80% 0.19 140);
+    --lime-deep: oklch(55% 0.15 140);
+    --lime-ink: oklch(20% 0.07 140);
 
     --destructive: oklch(65% 0.19 25);
     --destructive-foreground: oklch(15% 0.02 25);

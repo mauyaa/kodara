@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Bricolage_Grotesque, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { ThemeScript } from "@/components/theme/theme-script";
 
-const geistSans = Geist({ subsets: ["latin"], variable: "--font-sans" });
+// Plus Jakarta Sans for body/UI text (this was already DESIGN.md's documented
+// intent — Geist was a drift from it, not a deliberate choice). Bricolage
+// Grotesque is new: a display face reserved for hero figures and headlines,
+// distinct enough from the body face to carry real typographic hierarchy.
+const bodySans = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-sans" });
+const displaySans = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-display" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
@@ -28,7 +33,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`h-full antialiased ${geistSans.variable} ${geistMono.variable}`}
+      className={`h-full antialiased ${bodySans.variable} ${displaySans.variable} ${geistMono.variable}`}
       suppressHydrationWarning
     >
       <head>
