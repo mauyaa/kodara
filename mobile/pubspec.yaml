@@ -45,3 +45,9 @@ flutter:
           weight: 600
         - asset: assets/fonts/GeistMono-Bold.ttf
           weight: 700
+    # Variable font — weight is selected at runtime via TextStyle's
+    # fontVariations, not separate static files (matches the web app's
+    # --font-display, reserved for hero figures only, not body text).
+    - family: BricolageGrotesque
+      fonts:
+        - asset: assets/fonts/BricolageGrotesque-Variable.ttf

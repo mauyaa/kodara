@@ -500,67 +500,101 @@ class _BalanceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final amount = balance?.balance;
     final isPaid = amount != null && amount <= 0;
+    final limeInk = context.kodara.limeInk;
 
-    return Container(
-      padding: const EdgeInsets.all(KodaraSpacing.space6),
-      decoration: BoxDecoration(
-        color: context.kodara.ink,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: KodaraShadows.accent,
+    // Entrance pop — the one hero surface on the screen gets a slightly
+    // more deliberate arrival than the list rows around it.
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutCubic,
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child: Transform.scale(
+          scale: 0.97 + (0.03 * t),
+          child: child,
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            isPaid ? 'ACCOUNT STATUS' : 'BALANCE DUE',
-            style: KodaraTypography.eyebrow.copyWith(
-              color: context.kodara.onInkSecondary,
-            ),
-          ),
-          const SizedBox(height: KodaraSpacing.space3),
-          AnimatedSwitcher(
-            duration: KodaraMotion.base,
-            switchInCurve: KodaraMotion.easeSpring,
-            child: Text(
-              amount == null
-                  ? '—'
-                  : isPaid
-                      ? 'All paid up'
-                      : formatKes(amount),
-              key: ValueKey<String>(amount?.toString() ?? 'pending'),
-              style: KodaraTypography.heroStyle,
-            ),
-          ),
-          const SizedBox(height: KodaraSpacing.space2),
-          Text(
-            isPaid
-                ? 'You are up to date. Next rent is due ${formatDate(tenancy.nextDueDate)}.'
-                : 'Next rent date · ${formatDate(tenancy.nextDueDate)}',
-            style: TextStyle(color: context.kodara.onInkMuted),
-          ),
-          const SizedBox(height: KodaraSpacing.space5),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: context.kodara.accent,
-                foregroundColor: Colors.white,
+      child: Container(
+        padding: const EdgeInsets.all(KodaraSpacing.space6),
+        decoration: BoxDecoration(
+          color: context.kodara.lime,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: KodaraShadows.lime,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isPaid ? 'ACCOUNT STATUS' : 'BALANCE DUE',
+              style: KodaraTypography.eyebrow.copyWith(
+                color: limeInk.withValues(alpha: 0.68),
               ),
-              onPressed: () {
-                HapticFeedback.lightImpact();
-                PaymentSheet.show(
-                  context,
-                  tenancy: tenancy,
-                  suggestedAmount: amount != null && amount > 0
-                      ? amount
-                      : tenancy.rentAmount,
-                );
-              },
-              icon: const Icon(Icons.phone_android_rounded, size: 19),
-              label: const Text('Pay with M-Pesa'),
             ),
-          ),
-        ],
+            const SizedBox(height: KodaraSpacing.space3),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 260),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.12),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: child,
+                ),
+              ),
+              child: Text(
+                amount == null
+                    ? '—'
+                    : isPaid
+                        ? 'All paid up'
+                        : formatKes(amount),
+                key: ValueKey<String>(amount?.toString() ?? 'pending'),
+                style: TextStyle(
+                  fontFamily: kodaraDisplayFontFamily,
+                  fontVariations: const [FontVariation('wght', 800)],
+                  fontSize: KodaraTypography.hero,
+                  height: 1.05,
+                  letterSpacing: -0.5,
+                  color: limeInk,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
+            const SizedBox(height: KodaraSpacing.space2),
+            Text(
+              isPaid
+                  ? 'You are up to date. Next rent is due ${formatDate(tenancy.nextDueDate)}.'
+                  : 'Next rent date · ${formatDate(tenancy.nextDueDate)}',
+              style: TextStyle(color: limeInk.withValues(alpha: 0.7)),
+            ),
+            const SizedBox(height: KodaraSpacing.space5),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: limeInk,
+                  foregroundColor: context.kodara.lime,
+                ),
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  PaymentSheet.show(
+                    context,
+                    tenancy: tenancy,
+                    suggestedAmount: amount != null && amount > 0
+                        ? amount
+                        : tenancy.rentAmount,
+                  );
+                },
+                icon: const Icon(Icons.phone_android_rounded, size: 19),
+                label: const Text('Pay with M-Pesa'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

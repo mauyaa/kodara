@@ -16,6 +16,10 @@ const String kodaraFontFamily = 'Geist';
 // pairing as the web app (Geist Sans + Geist Mono), so tabular numerals
 // look identical on both clients.
 const String kodaraMonoFontFamily = 'GeistMono';
+// Reserved for the ONE hero figure per screen (the tenant balance card) —
+// same face as the web dashboard's --font-display. A variable font, so
+// weight is set per-use via TextStyle.fontVariations, not separate files.
+const String kodaraDisplayFontFamily = 'BricolageGrotesque';
 
 class KodaraColors {
   const KodaraColors._();
@@ -29,6 +33,14 @@ class KodaraColors {
 
   // The one dark chrome surface: tenant balance card.
   static const Color ink = Color(0xFF0B2922);
+
+  // Signature lime — the ONE saturated hero-card fill (balance card), same
+  // hue family as [accent] pushed to a real bright extreme. Same tokens as
+  // web's --lime/--lime-deep/--lime-ink. Never used for buttons or a
+  // second surface in the same screen.
+  static const Color lime = Color(0xFF8FE066);
+  static const Color limeDeep = Color(0xFF5FAE3C);
+  static const Color limeInk = Color(0xFF1F3A12);
 
   // Warm paper foundation — matches the web DESIGN.md tokens.
   static const Color background = Color(0xFFFAF9F7);
@@ -64,6 +76,12 @@ class KodaraColorsDark {
 
   // Balance card ink lifts slightly above the background.
   static const Color ink = Color(0xFF11362C);
+
+  // Lime stays bright against dark surfaces on purpose — it's meant to be
+  // the one glowing thing in the frame either way.
+  static const Color lime = Color(0xFF8AE05F);
+  static const Color limeDeep = Color(0xFF4F9E32);
+  static const Color limeInk = Color(0xFF16290C);
 
   static const Color background = Color(0xFF14120F);
   static const Color surface = Color(0xFF1D1A16);
@@ -129,6 +147,12 @@ class KodaraShadows {
   /// green-tinted shadow so the shadow itself signals importance.
   static const List<BoxShadow> accent = [
     BoxShadow(color: Color(0x380B8D70), offset: Offset(0, 16), blurRadius: 32),
+  ];
+
+  /// Glow for the lime balance card specifically — same idea as [accent]
+  /// but tinted to match the card's own fill instead of the app accent.
+  static const List<BoxShadow> lime = [
+    BoxShadow(color: Color(0x4A5FAE3C), offset: Offset(0, 18), blurRadius: 36),
   ];
 }
 
@@ -229,6 +253,9 @@ class KodaraThemeExtension extends ThemeExtension<KodaraThemeExtension> {
     required this.accentTint,
     required this.accentTintStrong,
     required this.ink,
+    required this.lime,
+    required this.limeDeep,
+    required this.limeInk,
     required this.background,
     required this.surface,
     required this.textPrimary,
@@ -249,6 +276,9 @@ class KodaraThemeExtension extends ThemeExtension<KodaraThemeExtension> {
   final Color accentTint;
   final Color accentTintStrong;
   final Color ink;
+  final Color lime;
+  final Color limeDeep;
+  final Color limeInk;
   final Color background;
   final Color surface;
   final Color textPrimary;
@@ -269,6 +299,9 @@ class KodaraThemeExtension extends ThemeExtension<KodaraThemeExtension> {
     accentTint: KodaraColors.accentTint,
     accentTintStrong: KodaraColors.accentTintStrong,
     ink: KodaraColors.ink,
+    lime: KodaraColors.lime,
+    limeDeep: KodaraColors.limeDeep,
+    limeInk: KodaraColors.limeInk,
     background: KodaraColors.background,
     surface: KodaraColors.surface,
     textPrimary: KodaraColors.textPrimary,
@@ -290,6 +323,9 @@ class KodaraThemeExtension extends ThemeExtension<KodaraThemeExtension> {
     accentTint: KodaraColorsDark.accentTint,
     accentTintStrong: KodaraColorsDark.accentTintStrong,
     ink: KodaraColorsDark.ink,
+    lime: KodaraColorsDark.lime,
+    limeDeep: KodaraColorsDark.limeDeep,
+    limeInk: KodaraColorsDark.limeInk,
     background: KodaraColorsDark.background,
     surface: KodaraColorsDark.surface,
     textPrimary: KodaraColorsDark.textPrimary,
@@ -312,6 +348,9 @@ class KodaraThemeExtension extends ThemeExtension<KodaraThemeExtension> {
     Color? accentTint,
     Color? accentTintStrong,
     Color? ink,
+    Color? lime,
+    Color? limeDeep,
+    Color? limeInk,
     Color? background,
     Color? surface,
     Color? textPrimary,
@@ -332,6 +371,9 @@ class KodaraThemeExtension extends ThemeExtension<KodaraThemeExtension> {
       accentTint: accentTint ?? this.accentTint,
       accentTintStrong: accentTintStrong ?? this.accentTintStrong,
       ink: ink ?? this.ink,
+      lime: lime ?? this.lime,
+      limeDeep: limeDeep ?? this.limeDeep,
+      limeInk: limeInk ?? this.limeInk,
       background: background ?? this.background,
       surface: surface ?? this.surface,
       textPrimary: textPrimary ?? this.textPrimary,
@@ -359,6 +401,9 @@ class KodaraThemeExtension extends ThemeExtension<KodaraThemeExtension> {
       accentTintStrong:
           Color.lerp(accentTintStrong, other.accentTintStrong, t)!,
       ink: Color.lerp(ink, other.ink, t)!,
+      lime: Color.lerp(lime, other.lime, t)!,
+      limeDeep: Color.lerp(limeDeep, other.limeDeep, t)!,
+      limeInk: Color.lerp(limeInk, other.limeInk, t)!,
       background: Color.lerp(background, other.background, t)!,
       surface: Color.lerp(surface, other.surface, t)!,
       textPrimary: Color.lerp(textPrimary, other.textPrimary, t)!,
