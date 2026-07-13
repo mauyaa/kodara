@@ -465,24 +465,32 @@ additional_redirect_urls = ["https://kodara.vercel.app"]
 # Everything below restores production's own pre-existing values for
 # settings a bare `config push` would otherwise silently overwrite with
 # this repo's LOCAL dev defaults (dummy Twilio creds, MFA disabled, SMS
-# signup/confirmations toggled on). Only auth.email.enable_confirmations is
-# an intentional change here -- confirmed 2026-07-13 against a fresh
-# `config push` diff showing production's actual prior values.
+# signup/confirmations toggled on). auth.email.enable_confirmations and the
+# auth.sms/auth.sms.twilio block below are intentional changes -- confirmed
+# 2026-07-13 against a fresh `config push` diff showing production's actual
+# prior values before making them.
 [remotes.production.auth.email]
 enable_confirmations = false
 max_frequency = "1m0s"
 otp_length = 8
 
+# Real Twilio account created 2026-07-13 specifically so tenants can verify
+# their phone (mobile app's signUp+verifyOTP flow, gated by
+# private.current_user_verified_phone() -- see accept_tenant_invitation in
+# 20260701000000_core_schema.sql). Nothing here is committed in plain text
+# (GitHub's push protection flags even the Account SID as a credential) --
+# set KODARA_TWILIO_ACCOUNT_SID and KODARA_TWILIO_AUTH_TOKEN in the shell
+# running `config push`.
 [remotes.production.auth.sms]
-enable_signup = false
-enable_confirmations = false
+enable_signup = true
+enable_confirmations = true
 template = "Your code is {{ .Code }}"
 
 [remotes.production.auth.sms.twilio]
-enabled = false
-account_sid = ""
-message_service_sid = ""
-auth_token = ""
+enabled = true
+account_sid = "env(KODARA_TWILIO_ACCOUNT_SID)"
+message_service_sid = "MG020a3b0336250e0d22ab9a5b61ecaa02"
+auth_token = "env(KODARA_TWILIO_AUTH_TOKEN)"
 
 [remotes.production.auth.mfa.totp]
 enroll_enabled = true

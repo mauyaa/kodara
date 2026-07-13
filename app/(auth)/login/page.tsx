@@ -33,12 +33,12 @@ export default async function LoginPage(props: { searchParams: Promise<{ error?:
 
       <form action={login} className="space-y-6">
         <div className="space-y-2">
-          <Label htmlFor="email" className="text-foreground font-medium">Email Address</Label>
+          <Label htmlFor="identifier" className="text-foreground font-medium">Email or phone number</Label>
           <Input
-            id="email"
-            name="email"
-            type="email"
-            placeholder="name@company.com"
+            id="identifier"
+            name="identifier"
+            type="text"
+            placeholder="name@company.com or 2547XXXXXXXX"
             required
             className="h-11 bg-secondary/30 border-border/50 focus:bg-background focus-visible:ring-primary transition-colors shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] rounded-lg"
           />
