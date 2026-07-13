@@ -43,27 +43,28 @@ export default async function TenantPortalPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, phone")
-    .eq("id", user.id)
-    .single();
-
-  const { data: tenancy } = await supabase
-    .from("tenancies")
-    .select(`
-      id,
-      rent_amount,
-      billing_day,
-      payment_reference,
-      units (
-        name,
-        properties ( name )
-      )
-    `)
-    .eq("tenant_id", user.id)
-    .eq("status", "active")
-    .maybeSingle();
+  const [{ data: profile }, { data: tenancy }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("full_name, phone")
+      .eq("id", user.id)
+      .single(),
+    supabase
+      .from("tenancies")
+      .select(`
+        id,
+        rent_amount,
+        billing_day,
+        payment_reference,
+        units (
+          name,
+          properties ( name )
+        )
+      `)
+      .eq("tenant_id", user.id)
+      .eq("status", "active")
+      .maybeSingle(),
+  ]);
 
   if (!tenancy) {
     // RLS scopes invitations to the caller's verified phone.
@@ -158,11 +159,46 @@ export default async function TenantPortalPage({
   const property =
     unit && Array.isArray(unit.properties) ? unit.properties[0] : unit?.properties;
 
-  const { data: balanceRow } = await supabase
-    .from("tenancy_balances")
-    .select("balance, total_paid")
-    .eq("tenancy_id", tenancy.id)
-    .maybeSingle();
+  const tenancyId = tenancy.id;
+
+  // These five only depend on tenancyId/user.id, already known -- running
+  // them sequentially was up to 5 extra round trips per page load, slow
+  // enough on a weak connection to plausibly time out the whole request.
+  const [
+    { data: balanceRow },
+    { data: payments },
+    { data: tickets },
+    { data: reminders },
+    { data: thread },
+  ] = await Promise.all([
+    supabase
+      .from("tenancy_balances")
+      .select("balance, total_paid")
+      .eq("tenancy_id", tenancyId)
+      .maybeSingle(),
+    supabase
+      .from("payments")
+      .select("id, amount, provider_transaction_id, paid_at, reconciliation_status")
+      .eq("tenancy_id", tenancyId)
+      .order("paid_at", { ascending: false })
+      .limit(8),
+    supabase
+      .from("maintenance_requests")
+      .select("id, title, status, created_at")
+      .eq("tenancy_id", tenancyId)
+      .order("created_at", { ascending: false })
+      .limit(5),
+    supabase
+      .from("notifications")
+      .select("id, title, body, created_at")
+      .order("created_at", { ascending: false })
+      .limit(3),
+    supabase
+      .from("message_threads")
+      .select("id")
+      .eq("tenancy_id", tenancyId)
+      .maybeSingle(),
+  ]);
 
   const balance = Number(balanceRow?.balance ?? 0);
   const rent = Number(tenancy.rent_amount);
@@ -171,13 +207,6 @@ export default async function TenantPortalPage({
     day: "numeric",
     month: "long",
   });
-
-  const { data: payments } = await supabase
-    .from("payments")
-    .select("id, amount, provider_transaction_id, paid_at, reconciliation_status")
-    .eq("tenancy_id", tenancy.id)
-    .order("paid_at", { ascending: false })
-    .limit(8);
 
   // Real per-tenant weekly payment trend for the balance-card sparkline.
   const weeklyPaid = Array.from({ length: 8 }, () => 0);
@@ -191,44 +220,24 @@ export default async function TenantPortalPage({
     weeklyPaid[7 - Math.min(weeksAgo, 7)] += Number(p.amount);
   }
 
-  const { data: tickets } = await supabase
-    .from("maintenance_requests")
-    .select("id, title, status, created_at")
-    .eq("tenancy_id", tenancy.id)
-    .order("created_at", { ascending: false })
-    .limit(5);
-
-  const { data: reminders } = await supabase
-    .from("notifications")
-    .select("id, title, body, created_at")
-    .order("created_at", { ascending: false })
-    .limit(3);
-
-  const tenancyId = tenancy.id;
-
-  const { data: thread } = await supabase
-    .from("message_threads")
-    .select("id")
-    .eq("tenancy_id", tenancyId)
-    .maybeSingle();
-
-  const { data: messages } = thread
-    ? await supabase
-        .from("messages")
-        .select("id, sender_id, body, created_at")
-        .eq("thread_id", thread.id)
-        .order("created_at", { ascending: true })
-        .limit(50)
-    : { data: [] };
-
-  if (thread) {
-    await supabase
-      .from("messages")
-      .update({ read_at: new Date().toISOString() })
-      .eq("thread_id", thread.id)
-      .neq("sender_id", user.id)
-      .is("read_at", null);
-  }
+  const [{ data: messages }] = await Promise.all([
+    thread
+      ? supabase
+          .from("messages")
+          .select("id, sender_id, body, created_at")
+          .eq("thread_id", thread.id)
+          .order("created_at", { ascending: true })
+          .limit(50)
+      : Promise.resolve({ data: [] }),
+    thread
+      ? supabase
+          .from("messages")
+          .update({ read_at: new Date().toISOString() })
+          .eq("thread_id", thread.id)
+          .neq("sender_id", user.id)
+          .is("read_at", null)
+      : Promise.resolve(null),
+  ]);
 
   const sendMessageToLandlord = async (formData: FormData) => {
     "use server";
