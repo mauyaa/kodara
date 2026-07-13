@@ -1,8 +1,7 @@
-import { Banknote, Wrench, ChevronRight, CheckCircle2, FileWarning } from "lucide-react";
+import { Banknote, Wrench, ChevronRight, CheckCircle2, FileWarning, TrendingUp, TrendingDown } from "lucide-react";
 import { formatKES } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -13,9 +12,8 @@ import {
 } from "@/components/ui/table";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { Reveal, RevealGroup, RevealItem } from "@/components/motion/reveal";
+import { Reveal } from "@/components/motion/reveal";
 import { AnimatedNumber } from "@/components/motion/animated-number";
-import { Sparkline } from "@/components/data/sparkline";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -71,6 +69,13 @@ export default async function DashboardPage() {
     const bucket = 7 - Math.min(weeksAgo, 7);
     weeklyTotals[bucket] += Number(p.amount);
   }
+
+  // Week-over-week change for the hero trend chip. Only shown when there's
+  // a real prior week to compare against -- no fabricated "+0%" on a
+  // portfolio with no payment history yet.
+  const [priorWeek, latestWeek] = weeklyTotals.slice(-2);
+  const weekChangePercent =
+    priorWeek > 0 ? Math.round(((latestWeek - priorWeek) / priorWeek) * 100) : null;
 
   // Fetch the most recent payments for the ledger table (display only, not used for totals above)
   const { data: payments } = await supabase
@@ -151,60 +156,66 @@ export default async function DashboardPage() {
         </p>
       </Reveal>
 
-      {/* Golden-ratio row: the hero takes ~38% of the width, the three
-          supporting metrics share the remaining ~62%. */}
-      <RevealGroup className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <RevealItem className="sm:col-span-2 xl:col-span-2">
-          {/* Hero metric — the one number that matters this month */}
-          <Card className="h-full overflow-hidden rounded-[var(--radius)] border-0 ring-0 bg-foreground text-background shadow-[var(--shadow-hero)]">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between gap-3">
-                <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.12em] text-background/50">
-                  Collected This Month
-                </CardTitle>
-                <Sparkline
-                  points={weeklyTotals}
-                  width={72}
-                  height={24}
-                  className="mt-0.5 shrink-0 text-[oklch(72%_0.13_166)]"
-                />
-              </div>
+      {/* The one accent moment on this screen: everything else on the page
+          (stat row, ledger, action panel) stays neutral so this card is
+          unmistakably the thing to look at first. */}
+      <Reveal>
+        <div className="relative">
+          {weekChangePercent !== null && (
+            <div
+              className={`absolute -top-[18px] right-9 z-10 flex items-center gap-1.5 rounded-full py-2 px-4 text-[13px] font-bold shadow-lg ${
+                weekChangePercent >= 0
+                  ? "bg-lime-ink text-lime"
+                  : "bg-foreground text-background"
+              }`}
+            >
+              {weekChangePercent >= 0 ? (
+                <TrendingUp className="h-3.5 w-3.5" />
+              ) : (
+                <TrendingDown className="h-3.5 w-3.5" />
+              )}
+              {weekChangePercent >= 0 ? "+" : ""}
+              {weekChangePercent}%
+            </div>
+          )}
+          <Card className="overflow-visible rounded-[28px] border-0 ring-0 bg-lime p-1 shadow-[var(--shadow-hero)]">
+            <CardHeader className="pb-3.5 pt-9 px-9">
+              <CardTitle className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-lime-ink/70">
+                Collected This Month
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-[34px] leading-none font-bold tracking-tighter">
-                <AnimatedNumber value={collectedThisMonth} formatType="kes" />
+            <CardContent className="px-9 pb-9">
+              <div className="font-display text-[64px] sm:text-[76px] font-extrabold leading-[0.88] tracking-[-0.03em] text-lime-ink">
+                <span className="mr-1 align-[0.35em] text-[24px] sm:text-[28px] font-bold opacity-60">Ksh</span>
+                <AnimatedNumber value={collectedThisMonth} formatType="count" fontClassName="font-display" />
               </div>
-              <div className="mt-4 h-1 w-full overflow-hidden rounded-full bg-background/15">
-                <div
-                  className="h-full rounded-full bg-[oklch(72%_0.13_166)] transition-[width] duration-700 ease-[var(--ease-out)]"
-                  style={{ width: `${Math.min(collectionRate, 100)}%` }}
-                />
-              </div>
-              <p className="text-[13px] text-background/60 mt-2.5">
-                {collectionRate}% of expected rent · 8-week trend above
+              <p className="mt-4 text-[14px] font-semibold text-lime-ink/70">
+                {collectionRate}% of {formatKES(expectedRent)} expected
               </p>
             </CardContent>
           </Card>
-        </RevealItem>
+        </div>
+      </Reveal>
 
-        {metrics.map((metric) => (
-          <RevealItem key={metric.title}>
-            <Card className="premium-card h-full overflow-hidden">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                  {metric.title}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-[28px] leading-none font-bold tracking-tight text-foreground">
-                  <AnimatedNumber value={metric.value} formatType={metric.formatType} />
-                </div>
-                <p className="text-[13px] text-muted-foreground mt-2.5">{metric.description}</p>
-              </CardContent>
-            </Card>
-          </RevealItem>
-        ))}
-      </RevealGroup>
+      {/* Supporting metrics stay quiet and inline — no boxed cards
+          competing with the hero for a second accent moment. */}
+      <Reveal delay={0.06}>
+        <div className="flex flex-wrap px-1">
+          {metrics.map((metric, i) => (
+            <div
+              key={metric.title}
+              className={`flex-1 min-w-[140px] pr-5 ${i > 0 ? "border-l border-border/60 pl-5" : ""}`}
+            >
+              <p className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-muted-foreground mb-1.5">
+                {metric.title}
+              </p>
+              <div className="font-display text-[21px] font-semibold tracking-[-0.015em] text-foreground">
+                <AnimatedNumber value={metric.value} formatType={metric.formatType} fontClassName="font-display" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </Reveal>
 
       <Reveal delay={0.12} className="grid gap-6 lg:grid-cols-[1fr_350px]">
         <Card className="premium-card">
@@ -262,16 +273,18 @@ export default async function DashboardPage() {
                       </TableCell>
                       <TableCell>
                         {payment.reconciliation_status.startsWith("matched") ? (
-                          <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[10px] uppercase tracking-wider font-semibold">
+                          <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-muted-foreground">
+                            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                             {payment.reconciliation_status === "matched_auto" ? "Auto-matched" : "Matched"}
-                          </Badge>
+                          </span>
                         ) : (
-                          <Badge variant="outline" className="bg-amber-500/10 text-amber-700 border-amber-500/25 text-[10px] uppercase tracking-wider font-semibold">
+                          <span className="inline-flex items-center gap-1.5 text-[11.5px] font-bold text-amber-700">
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                             Unmatched
-                          </Badge>
+                          </span>
                         )}
                       </TableCell>
-                      <TableCell className="text-right font-semibold tabular-nums">{formatKES(payment.amount)}</TableCell>
+                      <TableCell className="text-right font-display font-semibold tabular-nums">{formatKES(payment.amount)}</TableCell>
                     </TableRow>
                   );
                 })}

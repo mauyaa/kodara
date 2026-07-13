@@ -28,10 +28,12 @@ export function AnimatedNumber({
   value,
   formatType = "count",
   durationMs = 700,
+  fontClassName = "font-mono",
 }: {
   value: number;
   formatType?: keyof typeof FORMATTERS;
   durationMs?: number;
+  fontClassName?: string;
 }) {
   const format = FORMATTERS[formatType] ?? FORMATTERS.count;
 
@@ -74,5 +76,5 @@ export function AnimatedNumber({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
-  return <span className="tabular-nums font-mono">{format(display)}</span>;
+  return <span className={`tabular-nums ${fontClassName}`}>{format(display)}</span>;
 }
