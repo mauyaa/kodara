@@ -9,12 +9,17 @@ export async function login(formData: FormData) {
 
   // type-casting here for convenience
   // in production, use zod to validate
-  const data = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-  }
+  const identifier = (formData.get('identifier') as string)?.trim()
+  const password = formData.get('password') as string
 
-  const { error, data: signInData } = await supabase.auth.signInWithPassword(data)
+  // Tenants sign up via the mobile app with a verified phone and no email
+  // (see signup() below) -- accepting either here is what makes /portal
+  // reachable at all for a phone-only account.
+  const isPhone = /^254[17][0-9]{8}$/.test(identifier)
+
+  const { error, data: signInData } = await supabase.auth.signInWithPassword(
+    isPhone ? { phone: identifier, password } : { email: identifier, password },
+  )
 
   if (error) {
     redirect('/login?error=' + error.message)
