@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(56);
+select plan(62);
 
 -- Fixed identities keep failures readable.
 insert into auth.users (id, email) values
@@ -39,6 +39,7 @@ insert into public.properties (id, landlord_id, name, address) values
 insert into public.units (id, property_id, name) values
   ('40000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', 'A1'),
   ('40000000-0000-4000-8000-000000000003', '30000000-0000-4000-8000-000000000001', 'A2'),
+  ('40000000-0000-4000-8000-000000000004', '30000000-0000-4000-8000-000000000001', 'A3'),
   ('40000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000002', 'B1');
 
 insert into public.tenant_invitations (
@@ -54,10 +55,10 @@ insert into public.tenant_invitations (
 );
 
 insert into public.tenancies (
-  id, unit_id, tenant_id, rent_amount, billing_day, payment_reference, start_date
+  id, unit_id, tenant_id, rent_amount, billing_day, payment_reference, start_date, deposit_amount
 ) values
-  ('50000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', 25000, 5, 'KDR-TENANT-A', current_date - 30),
-  ('50000000-0000-4000-8000-000000000002', '40000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000002', 18000, 5, 'KDR-TENANT-B', current_date - 30);
+  ('50000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', 25000, 5, 'KDR-TENANT-A', current_date - 30, 20000),
+  ('50000000-0000-4000-8000-000000000002', '40000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000002', 18000, 5, 'KDR-TENANT-B', current_date - 30, null);
 
 insert into public.maintenance_requests (
   id, tenancy_id, title, description, created_by
@@ -603,6 +604,66 @@ select is(
   (select count(*)::integer from public.property_expenses),
   0,
   'the owning landlord can delete their own expense record'
+);
+
+reset role;
+
+-- Security deposits: create_tenant_invitation carries an optional deposit
+-- amount through to the invitation record (tenancy A already carries one
+-- from its fixture insert above, standing in for what accept_tenant_
+-- invitation would otherwise copy across).
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true);
+
+select is(
+  (
+    select deposit_amount from public.create_tenant_invitation(
+      '40000000-0000-4000-8000-000000000004', '254700000099', 30000, 5, current_date, null, 15000
+    )
+  ),
+  15000::numeric,
+  'create_tenant_invitation carries an optional deposit amount onto the invitation'
+);
+
+-- The deposit ledger: refunds/deductions can never exceed what was
+-- collected, enforced by record_deposit_transaction rather than a plain
+-- RLS insert policy (which can't express an aggregate check).
+select lives_ok(
+  $$select public.record_deposit_transaction(
+    '50000000-0000-4000-8000-000000000001', 'refund', 5000, 'partial refund at move-out'
+  )$$,
+  'a landlord can record a refund within the deposit collected'
+);
+select throws_ok(
+  $$select public.record_deposit_transaction(
+    '50000000-0000-4000-8000-000000000001', 'deduction', 20000, 'repainting the whole unit'
+  )$$,
+  '22003',
+  'this would exceed the deposit collected',
+  'a landlord cannot settle more than the deposit actually collected'
+);
+
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000002', true);
+select throws_ok(
+  $$select public.record_deposit_transaction(
+    '50000000-0000-4000-8000-000000000001', 'refund', 1000, 'not my tenancy'
+  )$$,
+  '42501',
+  'tenancy is not owned by caller',
+  'a different landlord cannot record a deposit transaction on this tenancy'
+);
+select is(
+  (select count(*)::integer from public.deposit_transactions where tenancy_id = '50000000-0000-4000-8000-000000000001'),
+  0,
+  'a different landlord cannot see this tenancy''s deposit ledger either'
+);
+
+select set_config('request.jwt.claim.sub', '20000000-0000-4000-8000-000000000001', true);
+select is(
+  (select count(*)::integer from public.deposit_transactions where tenancy_id = '50000000-0000-4000-8000-000000000001'),
+  1,
+  'the tenant can see their own deposit ledger'
 );
 
 reset role;

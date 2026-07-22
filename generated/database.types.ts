@@ -34,6 +34,58 @@ export type Database = {
   }
   public: {
     Tables: {
+      deposit_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string
+          id: string
+          note: string
+          tenancy_id: string
+          type: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by: string
+          id?: string
+          note: string
+          tenancy_id: string
+          type: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string
+          id?: string
+          note?: string
+          tenancy_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deposit_transactions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deposit_transactions_tenancy_id_fkey"
+            columns: ["tenancy_id"]
+            isOneToOne: false
+            referencedRelation: "tenancies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deposit_transactions_tenancy_id_fkey"
+            columns: ["tenancy_id"]
+            isOneToOne: false
+            referencedRelation: "tenancy_balances"
+            referencedColumns: ["tenancy_id"]
+          },
+        ]
+      }
       maintenance_requests: {
         Row: {
           created_at: string
@@ -853,6 +905,7 @@ export type Database = {
         Row: {
           billing_day: number
           created_at: string
+          deposit_amount: number | null
           end_date: string | null
           id: string
           payment_reference: string
@@ -866,6 +919,7 @@ export type Database = {
         Insert: {
           billing_day?: number
           created_at?: string
+          deposit_amount?: number | null
           end_date?: string | null
           id?: string
           payment_reference?: string
@@ -879,6 +933,7 @@ export type Database = {
         Update: {
           billing_day?: number
           created_at?: string
+          deposit_amount?: number | null
           end_date?: string | null
           id?: string
           payment_reference?: string
@@ -912,6 +967,7 @@ export type Database = {
           accepted_by: string | null
           billing_day: number
           created_at: string
+          deposit_amount: number | null
           end_date: string | null
           expires_at: string
           id: string
@@ -928,6 +984,7 @@ export type Database = {
           accepted_by?: string | null
           billing_day?: number
           created_at?: string
+          deposit_amount?: number | null
           end_date?: string | null
           expires_at?: string
           id?: string
@@ -944,6 +1001,7 @@ export type Database = {
           accepted_by?: string | null
           billing_day?: number
           created_at?: string
+          deposit_amount?: number | null
           end_date?: string | null
           expires_at?: string
           id?: string
@@ -1046,6 +1104,7 @@ export type Database = {
         Returns: {
           billing_day: number
           created_at: string
+          deposit_amount: number | null
           end_date: string | null
           id: string
           payment_reference: string
@@ -1070,6 +1129,7 @@ export type Database = {
           accepted_by: string | null
           billing_day: number
           created_at: string
+          deposit_amount: number | null
           end_date: string | null
           expires_at: string
           id: string
@@ -1092,6 +1152,7 @@ export type Database = {
         Args: {
           target_unit_id: string
           tenancy_billing_day: number
+          tenancy_deposit_amount?: number
           tenancy_end_date?: string
           tenancy_rent: number
           tenancy_start_date: string
@@ -1102,6 +1163,7 @@ export type Database = {
           accepted_by: string | null
           billing_day: number
           created_at: string
+          deposit_amount: number | null
           end_date: string | null
           expires_at: string
           id: string
@@ -1131,6 +1193,7 @@ export type Database = {
         Returns: {
           billing_day: number
           created_at: string
+          deposit_amount: number | null
           end_date: string | null
           id: string
           payment_reference: string
@@ -1227,6 +1290,29 @@ export type Database = {
       mark_landlord_mpesa_verified: {
         Args: { target_landlord_id: string }
         Returns: undefined
+      }
+      record_deposit_transaction: {
+        Args: {
+          target_tenancy_id: string
+          transaction_amount: number
+          transaction_note: string
+          transaction_type: string
+        }
+        Returns: {
+          amount: number
+          created_at: string
+          created_by: string
+          id: string
+          note: string
+          tenancy_id: string
+          type: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "deposit_transactions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       record_manual_payment: {
         Args: {

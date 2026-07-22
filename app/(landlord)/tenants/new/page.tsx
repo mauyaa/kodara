@@ -44,6 +44,8 @@ export default async function OnboardTenantPage(props: {
     const rentAmount = parseFloat(formData.get("rentAmount") as string);
     const billingDay = parseInt(formData.get("billingDay") as string, 10);
     const startDate = formData.get("startDate") as string;
+    const depositRaw = formData.get("depositAmount") as string;
+    const depositAmount = depositRaw ? parseFloat(depositRaw) : undefined;
 
     const sb = await createClient();
 
@@ -53,7 +55,8 @@ export default async function OnboardTenantPage(props: {
       tenant_phone: phone,
       tenancy_rent: rentAmount,
       tenancy_billing_day: billingDay,
-      tenancy_start_date: startDate
+      tenancy_start_date: startDate,
+      tenancy_deposit_amount: depositAmount
     });
 
     if (error) {
@@ -127,6 +130,21 @@ export default async function OnboardTenantPage(props: {
                 name="rentAmount"
                 type="number"
                 required
+                min="0"
+                step="0.01"
+                placeholder="e.g. 45000"
+                className="flex h-11 w-full rounded-xl border border-border/50 bg-secondary/30 px-3 py-2 text-[14px] placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label htmlFor="depositAmount" className="text-[13px] font-medium text-foreground">
+                Security deposit (KES) <span className="font-normal text-muted-foreground/60">(optional)</span>
+              </label>
+              <input
+                id="depositAmount"
+                name="depositAmount"
+                type="number"
                 min="0"
                 step="0.01"
                 placeholder="e.g. 45000"

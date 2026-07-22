@@ -1,28 +1,34 @@
-import { AlertCircle, DoorOpen } from "lucide-react";
+import { AlertCircle, DoorOpen, ShieldCheck } from "lucide-react";
 import { formatKES } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 
+const DEPOSIT_TYPE_LABELS: Record<string, string> = {
+  refund: "Refund",
+  deduction: "Deduction",
+};
+
 export default async function EndTenancyPage({
   params,
   searchParams,
 }: {
   params: Promise<{ tenancyId: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; depositError?: string }>;
 }) {
   const { tenancyId } = await params;
-  const { error: actionError } = await searchParams;
+  const { error: actionError, depositError } = await searchParams;
   const supabase = await createClient();
 
   const { data: tenancy } = await supabase
     .from("tenancies")
     .select(
       `
-      id, status, rent_amount, start_date,
+      id, status, rent_amount, start_date, deposit_amount,
       profiles ( full_name, phone ),
       units ( name, properties ( name ) )
     `,
@@ -40,10 +46,19 @@ export default async function EndTenancyPage({
     .eq("tenancy_id", tenancyId)
     .maybeSingle();
 
+  const { data: depositTransactions } = await supabase
+    .from("deposit_transactions")
+    .select("id, type, amount, note, created_at")
+    .eq("tenancy_id", tenancyId)
+    .order("created_at", { ascending: false });
+
   const profile = tenancy.profiles;
   const unit = tenancy.units;
   const property = unit && Array.isArray(unit.properties) ? unit.properties[0] : unit?.properties;
   const balance = Number(balanceRow?.balance ?? 0);
+  const depositAmount = Number(tenancy.deposit_amount ?? 0);
+  const depositSettled = (depositTransactions || []).reduce((acc, t) => acc + Number(t.amount), 0);
+  const depositRemaining = depositAmount - depositSettled;
 
   const endTenancy = async (formData: FormData) => {
     "use server";
@@ -65,6 +80,27 @@ export default async function EndTenancyPage({
     revalidatePath("/tenants");
     revalidatePath("/dashboard");
     redirect("/tenants");
+  };
+
+  const recordDeposit = async (formData: FormData) => {
+    "use server";
+    const type = String(formData.get("type") ?? "");
+    const amount = Number(formData.get("amount"));
+    const note = String(formData.get("note") ?? "");
+
+    const sb = await createClient();
+    const { error } = await sb.rpc("record_deposit_transaction", {
+      target_tenancy_id: tenancyId,
+      transaction_type: type,
+      transaction_amount: amount,
+      transaction_note: note,
+    });
+
+    if (error) {
+      redirect(`/tenants/${tenancyId}/end?depositError=${encodeURIComponent(error.message)}`);
+    }
+
+    revalidatePath(`/tenants/${tenancyId}/end`);
   };
 
   return (
@@ -110,6 +146,94 @@ export default async function EndTenancyPage({
           )}
         </CardContent>
       </Card>
+
+      {depositAmount > 0 && (
+        <Card className="premium-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              Security deposit
+            </CardTitle>
+            <CardDescription>
+              {formatKES(depositAmount)} collected · {formatKES(depositRemaining)} remaining
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-6">
+            {depositError && (
+              <div role="alert" className="flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                {depositError}
+              </div>
+            )}
+
+            {depositTransactions && depositTransactions.length > 0 && (
+              <ul className="flex flex-col gap-2">
+                {depositTransactions.map((t) => (
+                  <li key={t.id} className="flex items-center justify-between rounded-lg bg-secondary/30 px-3 py-2 text-[13px]">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[10px] uppercase tracking-wider font-semibold">
+                        {DEPOSIT_TYPE_LABELS[t.type] ?? t.type}
+                      </Badge>
+                      <span className="text-muted-foreground">{t.note}</span>
+                    </div>
+                    <span className="font-semibold tabular-nums">{formatKES(Number(t.amount))}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {depositRemaining > 0 ? (
+              <form action={recordDeposit} className="grid gap-3 sm:grid-cols-[1fr_1fr_2fr_auto] sm:items-end">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="type" className="text-[12px] font-medium text-foreground">Type</label>
+                  <select
+                    id="type"
+                    name="type"
+                    required
+                    className="h-10 rounded-lg border border-border/50 bg-secondary/30 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50"
+                  >
+                    <option value="refund">Refund</option>
+                    <option value="deduction">Deduction</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="amount" className="text-[12px] font-medium text-foreground">Amount (KES)</label>
+                  <input
+                    id="amount"
+                    name="amount"
+                    type="number"
+                    min="1"
+                    max={depositRemaining}
+                    step="0.01"
+                    required
+                    className="h-10 rounded-lg border border-border/50 bg-secondary/30 px-3 text-[13px] tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="note" className="text-[12px] font-medium text-foreground">Note</label>
+                  <input
+                    id="note"
+                    name="note"
+                    type="text"
+                    required
+                    minLength={2}
+                    maxLength={240}
+                    placeholder="e.g. Full refund, no damage"
+                    className="h-10 rounded-lg border border-border/50 bg-secondary/30 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50"
+                  />
+                </div>
+                <Button type="submit" variant="outline" className="h-10 text-[13px]">
+                  Record
+                </Button>
+              </form>
+            ) : (
+              <p className="text-[13px] text-muted-foreground">
+                The full deposit has been settled.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="premium-card">
         <CardHeader>
