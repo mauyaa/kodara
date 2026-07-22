@@ -619,7 +619,8 @@ select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001
 select is(
   (
     select deposit_amount from public.create_tenant_invitation(
-      '40000000-0000-4000-8000-000000000004', '254700000099', 30000, 5, current_date, null, 15000
+      '40000000-0000-4000-8000-000000000004'::uuid, '254700000099', 30000::numeric, 5::smallint,
+      current_date, null::date, 15000::numeric
     )
   ),
   15000::numeric,
