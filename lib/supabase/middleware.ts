@@ -38,10 +38,11 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   // Protect all landlord routes. If there is no user and the route is not an auth route, redirect to login.
-  // We assume the root `/` redirects to dashboard. The dashboard itself is under `/(landlord)/dashboard`.
+  // `/` is intentionally NOT protected: it's the public marketing page for signed-out
+  // visitors, and redirects signed-in users to their dashboard/portal itself (see app/page.tsx).
   // Because route groups don't show up in pathname, we check the actual path.
   const protectedRoutes = ['/dashboard', '/properties', '/tenants', '/payments', '/maintenance', '/settings', '/messages', '/onboarding']
-  const isProtectedRoute = protectedRoutes.some((route) => request.nextUrl.pathname.startsWith(route)) || request.nextUrl.pathname === '/'
+  const isProtectedRoute = protectedRoutes.some((route) => request.nextUrl.pathname.startsWith(route))
 
   if (!user && isProtectedRoute) {
     const url = request.nextUrl.clone()

@@ -5,23 +5,34 @@ Written 2026-07-12. Companion to `kodara.md` (product spec), `KODARA_BACKEND_HAN
 inventory of what's missing between the working v1 that exists today and a system that
 can win the Kenyan property-management market outright.
 
-## Implementation status (2026-07-12)
+## Implementation status (2026-07-22)
 
 **Tiers 0, 1, and 3 are built and verified** (pgTAP, lint, advisors, full `npm run check`,
 `flutter analyze`/`test`, a real signed release APK, and live browser walkthroughs of every
-new flow). Tier 2 (competitive-parity items: CSV/PDF export, deposits, late fees, lease
-documents, push notifications, WhatsApp, multi-staff accounts) and Tier 4 (ops
-infrastructure: error tracking, auth rate limiting, general audit log, admin tooling) and
-Tier 5 (differentiation) remain open — see those sections below unchanged.
+new flow). Tier 0.5 (public marketing site) and the expense-tracking half of Tier 2's
+"real financial picture" milestone are now also shipped — see below. The rest of Tier 2
+(CSV/PDF export, deposits, late fees, lease documents, push notifications, WhatsApp,
+multi-staff accounts), Tier 4 (ops infrastructure), and Tier 5 (differentiation) remain
+open — see those sections below unchanged.
 
 Shipped:
 - **Tier 0** — per-landlord M-Pesa credentials (Vault-encrypted, replacing the single
   shared sandbox shortcode), sandbox/mock-first eTIMS integration with a retry queue,
   published privacy policy.
+- **Tier 0.5** — a public marketing home page (`components/marketing/landing-page.tsx`)
+  replacing the old force-redirect-to-login at `/`: pitch, real feature list, how-it-works,
+  pricing pulled live from the `plans` table, and a closing CTA. No fabricated stats or
+  testimonials — trust signals are honest claims already true of the product (row-level
+  security, M-Pesa reconciliation, eTIMS-ready invoicing).
 - **Tier 1** — tenant-landlord messaging (web + mobile), end-of-tenancy/move-out workflow,
   a working landlord notification bell, the tenant web-signup dead end removed, an
   invitation-cancel button, a real Settings page (business profile, M-Pesa, eTIMS),
   mobile release signing with a real keystore, mobile multi-tenancy support.
+- **Tier 2 (partial)** — property expense tracking (`property_expenses` table + RLS +
+  a "Property expenses" card on each property's detail page): category, description,
+  amount, and date, with a running total surfaced alongside occupancy and arrears. Deposits
+  and late fees — the other two-thirds of the "real financial picture" milestone this was
+  scoped alongside — remain open.
 - **Tier 3** — `plans`/`subscriptions`/entitlement schema (a generous trial backfilled for
   every existing landlord), Kodara's own subscription billing via both M-Pesa STK push and
   Paystack (fully separate ledger from tenant rent), and a guided onboarding wizard for new
@@ -289,3 +300,84 @@ reprioritize this tier rather than guessing further from here.
   competitor products look like generic dashboard templates.
 - The staged CI/CD pipeline with a manual production approval gate — more mature than
   most products at this stage ship with.
+
+---
+
+## 2026-07-22 update — Rent Hero teardown + "product vs. company" gap
+
+Direct competitor audit of [Rent Hero Kenya](https://renthero.co.ke) (renthero.co.ke),
+prompted by a request to close the gap with what a live competitor's public site
+communicates. Rent Hero is a real, currently-marketed local competitor **not previously
+named in this doc** — add it to the market-position list alongside Nyumba Zetu, Silqu,
+Bomahut, etc. Their own blog (self-serving, but names real players) also surfaces three
+more local names worth tracking: **E-kodi**, **ShifTenant**, **Mali Kodi**.
+
+### The biggest finding isn't a feature gap — it's that Kodara has no public face
+
+`app/page.tsx` does exactly one thing: redirect straight to `/login`. There is no
+marketing page, no pricing, no "how it works," no trust signal, no way for a landlord who
+hasn't already decided to sign up to ever encounter Kodara. Rent Hero's entire site is
+built the opposite way: hero pitch → service breakdown → mission/about →
+Trustpilot rating badge → "Request a Demo" / WhatsApp contact → SEO blog. A landlord
+googling "rent collection software Kenya" today cannot land anywhere on Kodara.
+
+This is the concrete version of "ship a company, not just an app": the product being
+excellent behind login doesn't matter if the first thing every prospective landlord sees
+is a bare login form with no context. **Recommend inserting this as a new Tier 0.5** —
+after compliance, before the rest of Tier 2 — because it's low schema risk (pure
+marketing/static content, no RLS or payment code touched), fast to build, and blocks
+every other improvement from ever being discovered:
+- Public marketing home page: value prop, the M-Pesa-reconciliation story (this repo's
+  actual strongest asset), how-it-works, a real CTA into signup.
+- Social proof section (even a simple "built for Kenyan landlords" trust framing until
+  there are real testimonials to show).
+- A pricing page reflecting the Tier 3 billing plans already in the `plans` table.
+- Contact path (WhatsApp link, like Rent Hero's `wa.me` link, is nearly free to add given
+  Tier 2 already plans WhatsApp integration).
+
+### Feature gaps confirmed or newly surfaced by this competitor
+
+- **Expense tracking has no schema anywhere in Kodara.** Rent Hero markets "Expense &
+  Spend Management" as a headline feature; the blog post's Rent Hero summary explicitly
+  calls out expense tracking too. Today `tenancy_balances` only computes rent due vs.
+  paid — there's no way for a landlord to record a repair, a management fee, or any
+  outgoing cost against a property, which means Kodara can never show real net income,
+  only gross collection. **New item, add to Tier 2**: a `property_expenses` table
+  (category, amount, date, optional receipt attachment) and an expenses view per
+  property, feeding into the CSV/PDF export (Tier 2 #12) and eventually P&L reporting.
+- **Email as a third reminder/receipt channel.** Tier 2 #18 already scopes WhatsApp
+  alongside SMS; Rent Hero ships WhatsApp + SMS + email together. Email is the cheapest
+  of the three to add (no per-message cost, no WhatsApp Business API approval wait) and
+  is the right one to ship first if Tier 2's messaging work is being sequenced.
+- **Payment collection surface may be narrower than it needs to be.** Rent Hero
+  advertises Paybill, Till Number, and bank-transfer collection alongside STK push;
+  confirm whether Kodara's per-landlord M-Pesa credentials (Tier 0, shipped) expose a
+  paybill/till number tenants can pay into directly (for tenants who prefer dialing
+  *234# themselves over an STK prompt) in addition to the automated push, and whether
+  the existing manual "mark as paid" flow (shipped 2026-07-13) is positioned as covering
+  bank transfers specifically. If both already exist, this is a documentation/UX gap
+  (surfacing them to tenants), not a build gap — worth a quick audit before scoping work.
+- **Flexible rent cycles.** Rent Hero names this as a specific Kenyan-market feature.
+  Worth confirming `tenancies`/`tenancy_balances` don't hard-assume calendar-monthly
+  billing (e.g., a mid-month move-in with a prorated first invoice, or a
+  quarterly-payer). Audit before assuming this is fine as-is.
+- **Vacancy/listing marketplace (Tier 5 #28) is no longer speculative.** Rent Hero ships
+  a listing marketplace today, not as a roadmap item. This doesn't necessarily mean
+  pulling it forward — it's still a large scope addition (public listings, applicant
+  intake, a different trust/moderation surface) — but it should be re-evaluated at the
+  start of Phase D rather than assumed low-priority-by-default.
+- Confirms, rather than adds: deposits (Tier 2 #13) — Rent Hero's invoicing explicitly
+  includes deposits as a line item, reinforcing that deposit tracking and invoicing are
+  one feature, not two sequenced ones.
+
+### Suggested resequencing — done as of 2026-07-22
+
+Both recommendations below have shipped: Tier 0.5 (public marketing site) and the
+expense-tracking third of Tier 2's "real financial picture" milestone. Deposits and late
+fees are the two pieces of that milestone still open.
+
+~~Insert Tier 0.5 (public marketing site) between Tier 0 and Tier 1 in the phase plan —
+it's additive, low-risk, and is the one gap that blocks a prospective landlord from ever
+reaching everything else this document already prioritizes correctly. Add expense
+tracking to Tier 2 alongside deposits and late fees — the three form one coherent
+"real financial picture" milestone rather than three unrelated features.~~

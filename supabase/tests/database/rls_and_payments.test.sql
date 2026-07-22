@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(48);
+select plan(52);
 
 -- Fixed identities keep failures readable.
 insert into auth.users (id, email) values
@@ -549,6 +549,60 @@ select throws_ok(
   '42501',
   'new row violates row-level security policy for table "properties"',
   'a landlord on the Starter plan cannot exceed its one-property cap'
+);
+
+reset role;
+
+-- Property expenses: landlord-only financial record, isolated per landlord
+-- exactly like properties/units -- a second landlord should not be able to
+-- see or write into another landlord's property, even though (unlike units)
+-- this table has no denormalized landlord_id column of its own.
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true);
+
+insert into public.property_expenses (
+  id, property_id, category, description, amount, expense_date, created_by
+) values (
+  '80000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  'repair_maintenance',
+  'Fixed the leaking kitchen tap in A1',
+  3500,
+  current_date,
+  '10000000-0000-4000-8000-000000000001'
+);
+
+select is(
+  (select count(*)::integer from public.property_expenses),
+  1,
+  'a landlord can record and see an expense on their own property'
+);
+
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000002', true);
+select is(
+  (select count(*)::integer from public.property_expenses),
+  0,
+  'a different landlord cannot see an expense on a property they do not own'
+);
+
+select throws_ok(
+  $$insert into public.property_expenses (property_id, category, description, amount, created_by)
+    values (
+      '30000000-0000-4000-8000-000000000001', 'other', 'Sneaky expense', 100,
+      '10000000-0000-4000-8000-000000000002'
+    )$$,
+  '42501',
+  'new row violates row-level security policy for table "property_expenses"',
+  'a landlord cannot record an expense against another landlord''s property'
+);
+
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true);
+delete from public.property_expenses where id = '80000000-0000-4000-8000-000000000001';
+select is(
+  (select count(*)::integer from public.property_expenses),
+  0,
+  'the owning landlord can delete their own expense record'
 );
 
 reset role;

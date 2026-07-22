@@ -1,12 +1,21 @@
 import Link from "next/link";
-import { Building2, AlertCircle } from "lucide-react";
+import { Building2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-export default async function NewPropertyPage(props: { searchParams: Promise<{ error?: string }> }) {
+export default async function NewPropertyPage(props: {
+  searchParams: Promise<{
+    error?: string;
+    ref?: string;
+    property_name?: string;
+    address?: string;
+    county?: string;
+  }>;
+}) {
   const searchParams = await props.searchParams;
+  const fromZeni = searchParams?.ref === "zeni";
 
   const addProperty = async (formData: FormData) => {
     "use server";
@@ -68,6 +77,13 @@ export default async function NewPropertyPage(props: { searchParams: Promise<{ e
         </p>
       </div>
 
+      {fromZeni && (
+        <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 text-[13px] text-foreground">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+          Continuing from Zeni — we&apos;ve filled in what you listed there. Check it over and save.
+        </div>
+      )}
+
       {searchParams?.error && (
         <div role="alert" className="flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
           <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
@@ -90,6 +106,7 @@ export default async function NewPropertyPage(props: { searchParams: Promise<{ e
                 type="text"
                 required
                 placeholder="e.g. Sunrise Apartments"
+                defaultValue={searchParams?.property_name ?? ""}
                 className="flex h-11 w-full rounded-xl border border-border/50 bg-secondary/30 px-3 py-2 text-[14px] placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
               />
             </div>
@@ -102,6 +119,7 @@ export default async function NewPropertyPage(props: { searchParams: Promise<{ e
                 type="text"
                 required
                 placeholder="e.g. Kilimani, Argwings Kodhek Rd"
+                defaultValue={searchParams?.address ?? ""}
                 className="flex h-11 w-full rounded-xl border border-border/50 bg-secondary/30 px-3 py-2 text-[14px] placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
               />
             </div>
@@ -113,6 +131,7 @@ export default async function NewPropertyPage(props: { searchParams: Promise<{ e
                 name="county"
                 type="text"
                 placeholder="e.g. Nairobi"
+                defaultValue={searchParams?.county ?? ""}
                 className="flex h-11 w-full rounded-xl border border-border/50 bg-secondary/30 px-3 py-2 text-[14px] placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
               />
             </div>
