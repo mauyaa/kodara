@@ -716,6 +716,67 @@ export type Database = {
           },
         ]
       }
+      property_staff: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          id: string
+          invited_at: string
+          landlord_id: string
+          phone: string
+          property_id: string
+          staff_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          id?: string
+          invited_at?: string
+          landlord_id: string
+          phone: string
+          property_id: string
+          staff_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          id?: string
+          invited_at?: string
+          landlord_id?: string
+          phone?: string
+          property_id?: string
+          staff_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_staff_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_staff_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_staff_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscription_payments: {
         Row: {
           amount: number
@@ -1099,6 +1160,27 @@ export type Database = {
       }
     }
     Functions: {
+      accept_property_staff_invitation: {
+        Args: { target_property_staff_id: string }
+        Returns: {
+          accepted_at: string | null
+          created_at: string
+          id: string
+          invited_at: string
+          landlord_id: string
+          phone: string
+          property_id: string
+          staff_id: string | null
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "property_staff"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       accept_tenant_invitation: {
         Args: { target_invitation_id: string }
         Returns: {
@@ -1242,6 +1324,27 @@ export type Database = {
           shortcode: string
         }[]
       }
+      invite_property_staff: {
+        Args: { staff_phone: string; target_property_id: string }
+        Returns: {
+          accepted_at: string | null
+          created_at: string
+          id: string
+          invited_at: string
+          landlord_id: string
+          phone: string
+          property_id: string
+          staff_id: string | null
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "property_staff"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       landlord_etims_connection_status: {
         Args: never
         Returns: {
@@ -1384,6 +1487,27 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "profiles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      remove_property_staff: {
+        Args: { target_property_staff_id: string }
+        Returns: {
+          accepted_at: string | null
+          created_at: string
+          id: string
+          invited_at: string
+          landlord_id: string
+          phone: string
+          property_id: string
+          staff_id: string | null
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "property_staff"
           isOneToOne: true
           isSetofReturn: false
         }
