@@ -43,9 +43,26 @@ function StepProgress({ step }: { step: number }) {
 export default async function OnboardingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ step?: string; propertyId?: string; error?: string }>;
+  searchParams: Promise<{
+    step?: string;
+    propertyId?: string;
+    error?: string;
+    ref?: string;
+    property_name?: string;
+    address?: string;
+    county?: string;
+  }>;
 }) {
-  const { step: stepParam, propertyId, error: actionError } = await searchParams;
+  const {
+    step: stepParam,
+    propertyId,
+    error: actionError,
+    ref,
+    property_name: refPropertyName,
+    address: refAddress,
+    county: refCounty,
+  } = await searchParams;
+  const fromZeni = ref === "zeni";
   const supabase = await createClient();
 
   const {
@@ -144,6 +161,14 @@ export default async function OnboardingPage({
         <StepProgress step={step} />
       </div>
 
+      {fromZeni && step === 1 && (
+        <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 text-[13px] text-foreground">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+          Continuing from Zeni — we&apos;ve filled in what you listed there. Check it over and
+          continue.
+        </div>
+      )}
+
       {actionError && (
         <div role="alert" className="flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
           {actionError}
@@ -162,19 +187,39 @@ export default async function OnboardingPage({
                 <label htmlFor="name" className="text-[13px] font-medium text-foreground">
                   Property name
                 </label>
-                <input id="name" name="name" required placeholder="e.g. Sunrise Apartments" className={inputClassName} />
+                <input
+                  id="name"
+                  name="name"
+                  required
+                  placeholder="e.g. Sunrise Apartments"
+                  defaultValue={refPropertyName ?? ""}
+                  className={inputClassName}
+                />
               </div>
               <div className="flex flex-col gap-2">
                 <label htmlFor="address" className="text-[13px] font-medium text-foreground">
                   Street address
                 </label>
-                <input id="address" name="address" required placeholder="e.g. Kilimani, Argwings Kodhek Rd" className={inputClassName} />
+                <input
+                  id="address"
+                  name="address"
+                  required
+                  placeholder="e.g. Kilimani, Argwings Kodhek Rd"
+                  defaultValue={refAddress ?? ""}
+                  className={inputClassName}
+                />
               </div>
               <div className="flex flex-col gap-2">
                 <label htmlFor="county" className="text-[13px] font-medium text-foreground">
                   County
                 </label>
-                <input id="county" name="county" placeholder="e.g. Nairobi" className={inputClassName} />
+                <input
+                  id="county"
+                  name="county"
+                  placeholder="e.g. Nairobi"
+                  defaultValue={refCounty ?? ""}
+                  className={inputClassName}
+                />
               </div>
               <div className="flex flex-col gap-2">
                 <label htmlFor="initialUnits" className="text-[13px] font-medium text-foreground">
