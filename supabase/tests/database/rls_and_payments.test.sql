@@ -3,14 +3,15 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(62);
+select plan(77);
 
 -- Fixed identities keep failures readable.
 insert into auth.users (id, email) values
   ('10000000-0000-4000-8000-000000000001', 'landlord-a@kodara.test'),
   ('10000000-0000-4000-8000-000000000002', 'landlord-b@kodara.test'),
   ('20000000-0000-4000-8000-000000000001', 'tenant-a@kodara.test'),
-  ('20000000-0000-4000-8000-000000000002', 'tenant-b@kodara.test');
+  ('20000000-0000-4000-8000-000000000002', 'tenant-b@kodara.test'),
+  ('90000000-0000-4000-8000-000000000001', 'caretaker@kodara.test');
 
 update auth.users
 set phone = '+254700000001', phone_confirmed_at = now()
@@ -18,6 +19,9 @@ where id = '20000000-0000-4000-8000-000000000001';
 update auth.users
 set phone = '+254700000002', phone_confirmed_at = now()
 where id = '20000000-0000-4000-8000-000000000002';
+update auth.users
+set phone = '+254700000010', phone_confirmed_at = now()
+where id = '90000000-0000-4000-8000-000000000001';
 
 update public.profiles
 set role = 'landlord', full_name = 'Landlord A'
@@ -703,6 +707,129 @@ select set_config('request.jwt.claim.role', 'anon', true);
 select lives_ok(
   $$select public.log_client_error('marketing page crashed')$$,
   'an anonymous visitor can also report a client error'
+);
+
+reset role;
+
+-- Caretaker/staff access. The highest-risk change in this file: it extends
+-- four functions nearly every other RLS policy and RPC in this schema
+-- already relies on, so every assertion above this point that still passes
+-- unmodified is itself regression coverage that ordinary landlord/tenant
+-- isolation was not disturbed. These assertions cover the new surface
+-- specifically: invite/accept/remove, cross-property isolation for staff
+-- (a caretaker on property A must not see property B), a write action
+-- actually working once active, and -- critically -- that removal really
+-- does revoke access rather than just flipping a status flag nothing reads.
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true);
+
+select lives_ok(
+  $$select public.invite_property_staff('30000000-0000-4000-8000-000000000001', '254700000010')$$,
+  'a landlord can invite a caretaker to their own property'
+);
+
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000002', true);
+select throws_ok(
+  $$select public.invite_property_staff('30000000-0000-4000-8000-000000000001', '254700000011')$$,
+  '42501',
+  'property is not owned by caller',
+  'a different landlord cannot invite staff onto a property they do not own'
+);
+select is(
+  (select count(*)::integer from public.property_staff),
+  0,
+  'a different landlord cannot see property A''s staff invitations at all'
+);
+
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true);
+select is(
+  (select count(*)::integer from public.property_staff where property_id = '30000000-0000-4000-8000-000000000001'),
+  1,
+  'the inviting landlord sees the pending invitation'
+);
+
+select set_config('request.jwt.claim.sub', '90000000-0000-4000-8000-000000000001', true);
+select is(
+  (select status from public.property_staff where phone = '254700000010'),
+  'invited',
+  'the invited person can see their own pending invitation by verified phone, before accepting'
+);
+
+select set_config('request.jwt.claim.sub', '20000000-0000-4000-8000-000000000002', true);
+select throws_ok(
+  $$select public.accept_property_staff_invitation(
+    (select id from public.property_staff where phone = '254700000010')
+  )$$,
+  '42501',
+  'invitation is unavailable',
+  'a mismatched phone cannot accept someone else''s staff invitation'
+);
+
+select set_config('request.jwt.claim.sub', '90000000-0000-4000-8000-000000000001', true);
+select is(
+  (
+    select status from public.accept_property_staff_invitation(
+      (select id from public.property_staff where phone = '254700000010')
+    )
+  ),
+  'active',
+  'the invited person can accept their own invitation'
+);
+
+select is(
+  (select count(*)::integer from public.properties where id = '30000000-0000-4000-8000-000000000001'),
+  1,
+  'an active caretaker can see the property they were assigned to'
+);
+select is(
+  (select count(*)::integer from public.properties where id = '30000000-0000-4000-8000-000000000002'),
+  0,
+  'an active caretaker cannot see a different landlord''s property'
+);
+select is(
+  (select count(*)::integer from public.units where property_id = '30000000-0000-4000-8000-000000000001'),
+  3,
+  'an active caretaker can see units on their assigned property'
+);
+select is(
+  (select count(*)::integer from public.tenancies where unit_id = '40000000-0000-4000-8000-000000000001'),
+  1,
+  'an active caretaker can see a tenancy on their assigned property'
+);
+select lives_ok(
+  $$select public.record_manual_payment(
+    '50000000-0000-4000-8000-000000000001', 2000, current_date, 'collected by caretaker'
+  )$$,
+  'an active caretaker can record a manual payment on their assigned property, same as the landlord'
+);
+
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000002', true);
+select throws_ok(
+  $$select public.remove_property_staff(
+    (select id from public.property_staff where phone = '254700000010')
+  )$$,
+  '42501',
+  'staff assignment not found or not owned by caller',
+  'a different landlord cannot remove another landlord''s staff'
+);
+
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true);
+select is(
+  (
+    select status from public.remove_property_staff(
+      (select id from public.property_staff where phone = '254700000010')
+    )
+  ),
+  'removed',
+  'the owning landlord can remove their own staff assignment'
+);
+
+select set_config('request.jwt.claim.sub', '90000000-0000-4000-8000-000000000001', true);
+select is(
+  (select count(*)::integer from public.properties where id = '30000000-0000-4000-8000-000000000001'),
+  0,
+  'removal actually revokes access -- the former caretaker no longer sees the property'
 );
 
 reset role;
