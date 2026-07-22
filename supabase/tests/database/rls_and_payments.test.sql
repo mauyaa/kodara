@@ -624,6 +624,15 @@ select ok(
   not has_table_privilege('authenticated', 'private.error_events', 'select'),
   'authenticated role cannot read the error log back'
 );
+-- Checked from here (a role with USAGE on schema `private`) rather than
+-- while impersonating anon below: anon has no USAGE on that schema at all,
+-- so it can't even resolve the identifier to ask the question -- the
+-- privilege being tested (anon's grants on the table) doesn't depend on
+-- which role is asking.
+select ok(
+  not has_table_privilege('anon', 'private.error_events', 'select'),
+  'anon role cannot read the error log back'
+);
 
 reset role;
 set local role anon;
@@ -632,10 +641,6 @@ select set_config('request.jwt.claim.role', 'anon', true);
 select lives_ok(
   $$select public.log_client_error('marketing page crashed')$$,
   'an anonymous visitor can also report a client error'
-);
-select ok(
-  not has_table_privilege('anon', 'private.error_events', 'select'),
-  'anon role cannot read the error log back'
 );
 
 reset role;
