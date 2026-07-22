@@ -1210,6 +1210,16 @@ export type Database = {
           trial_ends_at: string
         }[]
       }
+      log_client_error: {
+        Args: {
+          error_context?: string
+          error_digest?: string
+          error_message: string
+          error_stack?: string
+          page_url?: string
+        }
+        Returns: undefined
+      }
       mark_landlord_etims_verified: {
         Args: { target_landlord_id: string }
         Returns: undefined

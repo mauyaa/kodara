@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(52);
+select plan(56);
 
 -- Fixed identities keep failures readable.
 insert into auth.users (id, email) values
@@ -603,6 +603,39 @@ select is(
   (select count(*)::integer from public.property_expenses),
   0,
   'the owning landlord can delete their own expense record'
+);
+
+reset role;
+
+-- Production error tracking: any authenticated caller can report an error
+-- (attributed to them), an anonymous visitor on the public marketing page
+-- can too (attributed to no one), and neither role can read the log back --
+-- it's write-only from the client's perspective, same shape as this
+-- schema's other client-facing RPCs.
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '20000000-0000-4000-8000-000000000001', true);
+
+select lives_ok(
+  $$select public.log_client_error('boom', 'at foo.tsx:1', 'abc123', 'tenant-error-boundary', '/portal')$$,
+  'an authenticated user can report a client error'
+);
+select ok(
+  not has_table_privilege('authenticated', 'private.error_events', 'select'),
+  'authenticated role cannot read the error log back'
+);
+
+reset role;
+set local role anon;
+select set_config('request.jwt.claim.role', 'anon', true);
+
+select lives_ok(
+  $$select public.log_client_error('marketing page crashed')$$,
+  'an anonymous visitor can also report a client error'
+);
+select ok(
+  not has_table_privilege('anon', 'private.error_events', 'select'),
+  'anon role cannot read the error log back'
 );
 
 reset role;

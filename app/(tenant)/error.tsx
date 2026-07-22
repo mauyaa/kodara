@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { reportClientError } from "@/lib/error-tracking";
 
 export default function PortalError({
   error,
@@ -12,7 +13,7 @@ export default function PortalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error(error);
+    reportClientError(error, "tenant-error-boundary");
   }, [error]);
 
   return (
