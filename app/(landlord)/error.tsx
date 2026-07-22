@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { reportClientError } from "@/lib/error-tracking";
 
 export default function LandlordError({
   error,
@@ -12,7 +13,7 @@ export default function LandlordError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error(error);
+    reportClientError(error, "landlord-error-boundary");
   }, [error]);
 
   return (
