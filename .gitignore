@@ -44,7 +44,10 @@ next-env.d.ts
 
 # local-only
 kodara-init.bundle
-.claude/settings.local.json
+.claude/
+.agents/
+CLAUDE.md
+AGENTS.md
 supabase/.temp/
 .tooling/
 .dart-local/
