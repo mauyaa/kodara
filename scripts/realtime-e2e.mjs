@@ -57,9 +57,6 @@ function timeout(label, milliseconds = 25_000) {
   );
 }
 
-function delay(milliseconds) {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
 
 function assertAuthorizedPayload(payload, label) {
   if (Array.isArray(payload?.errors) && payload.errors.length > 0) {
@@ -175,10 +172,27 @@ try {
     rejectMaintenance = reject;
   });
 
+  // SUBSCRIBED only means the socket joined the channel. Realtime sends a
+  // separate system message once its Postgres change feed is listening;
+  // until then, inserts are silently missed. Waiting on a fixed delay made
+  // this test flaky, so wait for that message instead.
+  let resolveChangeFeed;
+  let rejectChangeFeed;
+  const changeFeedReady = new Promise((resolve, reject) => {
+    resolveChangeFeed = resolve;
+    rejectChangeFeed = reject;
+  });
+
   let channelError = null;
   const subscribed = new Promise((resolve, reject) => {
     channel = authClient
       .channel(`kodara-realtime-e2e-${run}`)
+      .on("system", {}, (payload) => {
+        if (payload?.extension !== "postgres_changes") return;
+        console.log("Realtime change feed", payload.status, payload.message ?? "");
+        if (payload.status === "ok") resolveChangeFeed();
+        else rejectChangeFeed(new Error(`Realtime change feed: ${payload.message ?? payload.status}`));
+      })
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "payments" },
@@ -225,9 +239,7 @@ try {
   });
 
   await Promise.race([subscribed, timeout("Realtime subscription")]);
-  // The local Realtime gateway can report SUBSCRIBED just before its CDC
-  // subscription transaction is visible to the replication worker.
-  await delay(2_000);
+  await Promise.race([changeFeedReady, timeout("Realtime change feed")]);
 
   const attemptId = crypto.randomUUID();
   const { error: attemptError } = await admin.from("payment_attempts").insert({

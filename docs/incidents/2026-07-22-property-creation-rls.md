@@ -87,7 +87,7 @@ Staff and tenant access are unchanged.
 | Remove the always-failing deploy job so a red pipeline is a real signal | Done |
 | Apply the migration to production (`supabase db push`) | **Open** |
 | Gate production deploys on CI (Vercel deployment checks) | Open |
-| Make the realtime end-to-end test deterministic; it passed on retry with no code change | Open |
+| Make the realtime end-to-end test deterministic: wait for the change-feed ready signal instead of a fixed delay | Done |
 | When a policy delegates to a helper, test the RETURNING path for that table | Adopted as a review rule |
 
 ## Lessons
